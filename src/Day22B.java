@@ -79,14 +79,18 @@ public class Day22B {
             }
             if (intersection != null) {
                 cuboids.remove(existing);
-                cuboids.add(intersection);
+                if (intersection.on) {
+                    cuboids.add(intersection);
+                }
                 cuboids.addAll(restOfExisting);
                 for (Cuboid rest : restOfC) {
                     add(rest);
                 }
             } else {
                 // success!
-                cuboids.add(c);
+                if (c.on) {
+                    cuboids.add(c);
+                }
             }
         }
 
