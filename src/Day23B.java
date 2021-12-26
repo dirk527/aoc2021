@@ -97,7 +97,7 @@ public class Day23B {
         public State(char[] data, long energy, State prev) {
             this.data = data;
             this.energy = energy;
-//            this.prev = prev;
+            this.prev = prev;
         }
 
         private char hallway(int i) {
