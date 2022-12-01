@@ -1,3 +1,5 @@
+package aoc2021;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;

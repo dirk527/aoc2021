@@ -1,3 +1,5 @@
+package aoc2021;
+
 import java.io.*;
 
 public class Day1A {
