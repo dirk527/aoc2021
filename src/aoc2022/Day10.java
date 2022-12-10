@@ -9,7 +9,6 @@ import java.util.List;
 public class Day10 {
     public static void main(String[] args) throws IOException {
         String filename = "day10.txt";
-
         BufferedReader br = new BufferedReader(new FileReader(filename));
         String s;
         int cycle = 0;
