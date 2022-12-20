@@ -14,7 +14,7 @@ public class Day19 {
     public static void main(String[] args) throws IOException {
         // Initialize
         long begin = System.currentTimeMillis();
-        BufferedReader br = new BufferedReader(new FileReader("day19sample.txt"));
+        BufferedReader br = new BufferedReader(new FileReader("day19.txt"));
         Pattern pat = Pattern.compile("Blueprint (\\d+): Each ore robot costs (\\d+) ore. Each clay robot costs (\\d+) ore. Each obsidian robot costs (\\d+) ore and (\\d+) clay. Each geode robot costs (\\d+) ore and (\\d+) obsidian.");
         String s;
         List<Blueprint> blueprints = new ArrayList<>();
@@ -30,6 +30,7 @@ public class Day19 {
             long mid = System.currentTimeMillis();
             System.out.println(bp);
             cache.clear();
+            recBest = 0;
             int max = findRecursive(bp, new State(24, 1, 0, 0, 0, 0, 0, 0, 0));
             total += max * bp.id;
             long taken = System.currentTimeMillis() - mid;
@@ -45,8 +46,11 @@ public class Day19 {
         int g1 = findRecursive(blueprints.get(0), new State(32, 1, 0, 0, 0, 0, 0, 0, 0));
         System.out.println("g1 = " + g1);
         cache.clear();
+        recBest = 0;
         int g2 = findRecursive(blueprints.get(1), new State(32, 1, 0, 0, 0, 0, 0, 0, 0));
         System.out.println("g2 = " + g2);
+        cache.clear();
+        recBest = 0;
         int g3 = findRecursive(blueprints.get(2), new State(32, 1, 0, 0, 0, 0, 0, 0, 0));
         System.out.println("g3 = " + g3);
         System.out.println("part 2: " + (g1 * g2 * g3));
@@ -56,21 +60,29 @@ public class Day19 {
 
     static HashMap<State, Integer> cache = new HashMap<>();
 
+    static int recBest = 0;
     private static int findRecursive(Blueprint bp, State state) {
         if (state.minutes == 1) {
-            return state.geode + state.geodeBots;
+            int result = state.geode + state.geodeBots;
+            recBest = Math.max(recBest, result);
+            return result;
         }
         Integer cand = cache.get(state);
         if (cand != null) {
             return cand;
         }
+        int maxThinkable = (state.minutes * (state.minutes - 1)) / 2 + state.geodeBots * state.minutes + state.geode;
+        if (maxThinkable <= recBest) {
+            return 0;
+        }
+
         int best = 0;
         if (state.ore >= bp.geodeOre && state.obs >= bp.geodeObs) {
             best = Math.max(best, findRecursive(bp, state.buildGeodeBot(bp)));
         } else {
             boolean all = true;
-            if (state.ore >= bp.oreOre) {
-                best = Math.max(best, findRecursive(bp, state.buildOreBot(bp)));
+            if (state.ore >= bp.obsOre && state.clay >= bp.obsClay) {
+                best = Math.max(best, findRecursive(bp, state.buildObsidianBot(bp)));
             } else {
                 all = false;
             }
@@ -79,8 +91,8 @@ public class Day19 {
             } else {
                 all = false;
             }
-            if (state.ore >= bp.obsOre && state.clay >= bp.obsClay) {
-                best = Math.max(best, findRecursive(bp, state.buildObsidianBot(bp)));
+            if (state.ore >= bp.oreOre) {
+                best = Math.max(best, findRecursive(bp, state.buildOreBot(bp)));
             } else {
                 all = false;
             }
@@ -98,21 +110,36 @@ public class Day19 {
         int best = 0;
         while (!queue.isEmpty()) {
             State state = queue.removeFirst();
+            int maxThinkable = (state.minutes * (state.minutes - 1)) / 2 + state.geodeBots * state.minutes + state.geode;
+            if (maxThinkable <= best) {
+                continue;
+            }
             if (state.minutes == 0) {
                 best = Math.max(best, state.geode);
             } else {
-                queue.add(state.doNothing());
+                boolean all = true;
                 if (state.ore >= bp.oreOre) {
                     queue.add(state.buildOreBot(bp));
+                } else {
+                    all = false;
                 }
                 if (state.ore >= bp.clayOre) {
                     queue.add(state.buildClayBot(bp));
+                } else {
+                    all = false;
                 }
                 if (state.ore >= bp.obsOre && state.clay >= bp.obsClay) {
                     queue.add(state.buildObsidianBot(bp));
+                } else {
+                    all = false;
                 }
                 if (state.ore >= bp.geodeOre && state.obs >= bp.geodeObs) {
                     queue.add(state.buildGeodeBot(bp));
+                } else {
+                    all = false;
+                }
+                if (!all) {
+                    queue.add(state.doNothing());
                 }
             }
         }
