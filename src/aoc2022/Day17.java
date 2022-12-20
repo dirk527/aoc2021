@@ -77,6 +77,15 @@ public class Day17 {
             }
             if (round == 2021) {
                 System.out.println(maxheight);
+                print("", maxheight, blocked, new HashSet<>());
+            }
+            if (maxheight > 1000) {
+                for (int i=0;i<7;i++) {
+                    blocked.remove(new Point(i, maxheight - 1000));
+                    blocked.remove(new Point(i, maxheight - 1001));
+                    blocked.remove(new Point(i, maxheight - 1002));
+                    blocked.remove(new Point(i, maxheight - 1003));
+                }
             }
         }
         System.out.println(maxheight);
