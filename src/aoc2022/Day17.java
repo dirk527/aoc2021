@@ -29,7 +29,7 @@ public class Day17 {
         int jetIdx = 0;
         Set<Point> blocked = new HashSet<>();
         HashSet<Point> curBlock = new HashSet<>();
-        for (long round = 0; round < 1000000000000L; round++) {
+        for (long round = 0; round < 2022000L; round++) {
             if (round % 1000000000 == 0) {
                 System.out.println("round " + round);
             }
@@ -79,16 +79,10 @@ public class Day17 {
                 System.out.println(maxheight);
                 print("", maxheight, blocked, new HashSet<>());
             }
-            if (maxheight > 1000) {
-                for (int i=0;i<7;i++) {
-                    blocked.remove(new Point(i, maxheight - 1000));
-                    blocked.remove(new Point(i, maxheight - 1001));
-                    blocked.remove(new Point(i, maxheight - 1002));
-                    blocked.remove(new Point(i, maxheight - 1003));
-                }
-            }
         }
         System.out.println(maxheight);
+        long time = System.currentTimeMillis() - begin;
+        System.out.println(time + "ms");
     }
 
     record Point(int x, long y) {
