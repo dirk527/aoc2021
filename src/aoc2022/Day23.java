@@ -18,9 +18,8 @@ public class Day23 {
         HashMap<Pos, Elf> elves = new HashMap<>();
         int y = 0;
         while ((s = br.readLine()) != null) {
-            char[] charArray = s.toCharArray();
-            for (int x = 0; x < charArray.length; x++) {
-                if (charArray[x] == '#') {
+            for (int x = 0; x < s.length(); x++) {
+                if (s.charAt(x) == '#') {
                     elves.put(new Pos(x, y), new Elf());
                 }
             }
@@ -40,7 +39,7 @@ public class Day23 {
             for (var entry : elves.entrySet()) {
                 Pos pos = entry.getKey();
                 Elf elf = entry.getValue();
-                Pos proposedPos = elf.updateProposed(pos, elves, directions);
+                Pos proposedPos = elf.calculateProposed(pos, elves, directions);
                 if (proposedPos != null) {
                     proposed.computeIfAbsent(proposedPos, k -> new LinkedList<>());
                     proposed.get(proposedPos).add(elf);
@@ -60,10 +59,11 @@ public class Day23 {
                     anyoneMoved = true;
                 }
             }
+
             if (round == 9) {
                 // part 1 finished
                 int c = countEmpty(elves, "After round " + round);
-                System.out.println("part 1: " +c);
+                System.out.println("part 1: " + c);
                 pt1 = System.currentTimeMillis() - begin;
                 System.out.println(pt1 + "ms");
             }
@@ -103,7 +103,7 @@ public class Day23 {
                     System.out.print(elf ? '#' : '.');
                 }
                 if (!elf) {
-                    count ++;
+                    count++;
                 }
             }
             if (print != null) {
@@ -160,7 +160,7 @@ public class Day23 {
     static class Elf {
         Pos pos;
 
-        public Pos updateProposed(Pos pos, HashMap<Pos, Elf> elves, List<Direction> directions) {
+        public Pos calculateProposed(Pos pos, HashMap<Pos, Elf> elves, List<Direction> directions) {
             this.pos = pos;
             boolean anotherElfFound = false;
             Direction proposed = null;
@@ -172,10 +172,11 @@ public class Day23 {
                     proposed = d;
                 }
             }
-            if (!anotherElfFound) {
-                proposed = null;
+            if (anotherElfFound && proposed != null) {
+                return new Pos(pos.x + proposed.x, pos.y + proposed.y);
+            } else {
+                return null;
             }
-            return proposed == null ? null : new Pos(pos.x + proposed.x, pos.y + proposed.y);
         }
     }
 }
