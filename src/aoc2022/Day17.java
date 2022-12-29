@@ -3,16 +3,23 @@ package aoc2022;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class Day17 {
+    private static HashMap<Long,Integer> rows = new HashMap<>();
+    private static int[] masks;
+
+    static {
+        masks = new int[8];
+        for (int i = 0; i < 8; i++) {
+            masks[i] = 1 << i;
+        }
+    }
+
     public static void main(String[] args) throws IOException {
         // Initialize
         long begin = System.currentTimeMillis();
-//        String jets = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>";
+        //        String jets = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>";
         BufferedReader br = new BufferedReader(new FileReader("day17.txt"));
         String jets = br.readLine();
         int jetLen = jets.length();
@@ -23,96 +30,130 @@ public class Day17 {
         rocks.add(new Rock(new boolean[][]{{true}, {true}, {true}, {true}}));
         rocks.add(new Rock(new boolean[][]{{true, true}, {true, true}}));
 
-        // Simulate part 1
         long maxheight = 0;
         int rockIdx = 0;
         int jetIdx = 0;
-        Set<Point> blocked = new HashSet<>();
-        HashSet<Point> curBlock = new HashSet<>();
-        for (long round = 0; round < 2022000L; round++) {
-            if (round % 1000000000 == 0) {
-                System.out.println("round " + round);
-            }
+        // try to determine the length of the period: record where resting places are
+        HashMap<IdxState, List<SimulationState>> detector = new HashMap<>();
+        long goal = 1000000000000L;
+        long additionalCycles = -1;
+        long diffPerCycle = -1;
+        for (long round = 0; round < goal; round++) {
             boolean debug = false;
             Rock cur = rocks.get(rockIdx);
             rockIdx = (rockIdx + 1) % 5;
-            long startY = maxheight + 3 + cur.height();
-            long y = startY;
+            long y = maxheight + 3 + cur.height();
             int x = 2;
-            if (debug) {
-                curBlock.clear();
-                cur.block(x, y, curBlock);
-                print("Start round " + round, startY, blocked, curBlock);
-            }
             while (true) {
                 char dir = jets.charAt(jetIdx);
                 jetIdx = (jetIdx + 1) % jetLen;
                 if (dir == '<') {
-                    x = cur.moveLeft(x, y, blocked);
+                    x = cur.moveLeft(x, y);
                 } else {
-                    x = cur.moveRight(x, y, blocked);
+                    x = cur.moveRight(x, y);
                 }
-                if (debug) {
-                    curBlock.clear();
-                    cur.block(x, y, curBlock);
-                    print("After jet " + dir, startY, blocked, curBlock);
-                }
-                if (cur.canMoveDown(x, y, blocked)) {
+                if (cur.canMoveDown(x, y)) {
                     y--;
-                    if (debug) {
-                        curBlock.clear();
-                        cur.block(x, y, curBlock);
-                        print("Moved down", startY, blocked, curBlock);
-                    }
                 } else {
-                    if (false) {
-                        curBlock.clear();
-                        print("Resting place", startY, blocked, curBlock);
-                        cur.block(x, y, curBlock);
-                    }
-                    cur.block(x, y, blocked);
+                    cur.block(x, y);
                     maxheight = Math.max(maxheight, y);
+                    if (additionalCycles == -1 && rockIdx == 0) {
+                        IdxState is = new IdxState(jetIdx, rockIdx);
+                        List<SimulationState> sim = detector.get(is);
+                        if (sim == null) {
+                            sim = new ArrayList<>();
+                            detector.put(is, sim);
+                        } else if (sim.size() > 1) {
+                            if (debug) {
+                                System.out.print(is + " " + y);
+                                long ly = y;
+                                long lr = round;
+                                for (int i = sim.size() - 1; i >= 0; i--) {
+                                    SimulationState s = sim.get(i);
+                                    System.out.print(" (" + (ly - s.y) + "," + (lr - s.round) + ") " + s.y);
+                                    ly = s.y;
+                                    lr = s.round;
+                                }
+                                System.out.println();
+                            }
+                            SimulationState last = sim.get(sim.size() - 1);
+                            for (int i = sim.size() - 2; i >= 0; i--) {
+                                SimulationState cand = sim.get(i);
+                                if (equal(cand, last)) {
+                                    long period = last.round - cand.round;
+                                    diffPerCycle = last.y - cand.y;
+                                    System.out.println("Found period " + period + "/" + diffPerCycle + " " + last + " & " + cand + " | " + is);
+                                    additionalCycles = (goal - round) / period;
+                                    round += additionalCycles * period;
+                                }
+                            }
+                        }
+                        sim.add(new SimulationState(round, y));
+                    }
                     break;
                 }
             }
             if (round == 2021) {
-                System.out.println(maxheight);
-                print("", maxheight, blocked, new HashSet<>());
+                print("", maxheight);
+                System.out.println("part 1: " + maxheight);
+                long time = System.currentTimeMillis() - begin;
+                System.out.println(time + "ms");
             }
         }
-        System.out.println(maxheight);
+        System.out.println("cur height " + maxheight + " +" + additionalCycles + " * " + diffPerCycle);
+        long pt2 = maxheight + additionalCycles * diffPerCycle;
+        System.out.println("part 2: " + pt2);
+        // check correctness for example
+        // System.out.println(1514285714288L - pt2);
         long time = System.currentTimeMillis() - begin;
         System.out.println(time + "ms");
     }
 
-    record Point(int x, long y) {
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof Point point)) return false;
 
-            if (x != point.x) return false;
-            return y == point.y;
+    static boolean isBlocked(int x, long y) {
+        Integer cur = rows.get(y);
+        if (cur == null) {
+            return false;
         }
-
-        @Override
-        public int hashCode() {
-            int result = x;
-            result = 31 * result + (int) (y ^ (y >>> 32));
-            return result;
-        }
+        return (cur & masks[x]) != 0;
     }
 
-    public static void print(String s, long height, Set<Point> blocked, Set<Point> shape) {
+    static void addBlocked(int x, long y) {
+        Integer cur = rows.get(y);
+        if (cur == null) {
+            cur = masks[x];
+        } else {
+            cur = cur.intValue() | masks[x];
+        }
+        rows.put(y, cur);
+    }
+
+    private static boolean equal(SimulationState one, SimulationState two) {
+        long diff = two.round - one.round;
+        if (one.round < diff) {
+            return false;
+        }
+        long r1 = one.y;
+        long r2 = two.y;
+        for (long r = 0; r < diff; r++) {
+            for (int i = 0; i < 7; i++) {
+                if (isBlocked(i, r1) != isBlocked(i, r2)) {
+                    return false;
+                }
+            }
+            r1--;
+            r2--;
+        }
+        return true;
+    }
+
+    public static void print(String s, long height) {
         System.out.println(s);
         while (height > 0) {
             System.out.print("|");
             for (int i = 0; i < 7; i++) {
-                Point p = new Point(i, height);
-                if (blocked.contains(p)) {
+                if (isBlocked(i, height)) {
                     System.out.print("#");
-                } else if (shape.contains(p)) {
-                    System.out.print("@");
                 } else {
                     System.out.print(".");
                 }
@@ -121,6 +162,42 @@ public class Day17 {
             height--;
         }
         System.out.println("+-------+\n");
+    }
+
+    record IdxState(int jetIdx, int rockIdx) {
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof IdxState state)) return false;
+
+            if (jetIdx != state.jetIdx) return false;
+            return rockIdx == state.rockIdx;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = jetIdx;
+            result = 31 * result + rockIdx;
+            return result;
+        }
+    }
+
+    record SimulationState(long round, long y) {
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof SimulationState that)) return false;
+
+            if (round != that.round) return false;
+            return y == that.y;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = (int) (round ^ (round >>> 32));
+            result = 31 * result + (int) (y ^ (y >>> 32));
+            return result;
+        }
     }
 
     static class Rock {
@@ -134,13 +211,13 @@ public class Day17 {
             return shape.length;
         }
 
-        public int moveLeft(int x, long y, Set<Point> blocked) {
+        public int moveLeft(int x, long y) {
             if (x == 0) {
                 return 0;
             }
             for (boolean[] row : shape) {
                 for (int i = 0; i < row.length; i++) {
-                    if (row[i] && blocked.contains(new Point(x + i - 1, y))) {
+                    if (row[i] && isBlocked(x + i - 1, y)) {
                         return x;
                     }
                 }
@@ -149,13 +226,13 @@ public class Day17 {
             return x - 1;
         }
 
-        public int moveRight(int x, long y, Set<Point> blocked) {
+        public int moveRight(int x, long y) {
             if (x + shape[0].length == 7) {
                 return x;
             }
             for (boolean[] row : shape) {
                 for (int i = 0; i < row.length; i++) {
-                    if (row[i] && blocked.contains(new Point(x + i + 1, y))) {
+                    if (row[i] && isBlocked(x + i + 1, y)) {
                         return x;
                     }
                 }
@@ -164,14 +241,14 @@ public class Day17 {
             return x + 1;
         }
 
-        public boolean canMoveDown(int x, long y, Set<Point> blocked) {
+        public boolean canMoveDown(int x, long y) {
             if (y - height() == 0) {
                 return false;
             }
             y--;
             for (boolean[] row : shape) {
                 for (int i = 0; i < row.length; i++) {
-                    if (row[i] && blocked.contains(new Point(x + i, y))) {
+                    if (row[i] && isBlocked(x + i, y)) {
                         return false;
                     }
                 }
@@ -180,11 +257,11 @@ public class Day17 {
             return true;
         }
 
-        public void block(int x, long y, Set<Point> blocked) {
+        public void block(int x, long y) {
             for (boolean[] row : shape) {
                 for (int i = 0; i < row.length; i++) {
                     if (row[i]) {
-                        blocked.add(new Point(x + i, y));
+                        addBlocked(x + i, y);
                     }
                 }
                 y--;
