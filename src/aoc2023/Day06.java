@@ -43,11 +43,7 @@ public class Day06 {
         long time = Long.parseLong(tstr.replaceAll(" ", ""));
         long record = Long.parseLong(dstr.replaceAll(" ", ""));
 
-        // find one that's over the record - this is not guaranteed to work, but did for my input
-        long over = 1;
-        while (calculate(time, over) <= record) {
-            over *= 2;
-        }
+        long over = time / 2;
 
         // find first that's not
         long left = 1;
