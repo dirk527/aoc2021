@@ -35,6 +35,8 @@ public class Day08 {
             }
         }
 
+        long startTime = System.currentTimeMillis();
+
         Node cur = nodes.get("AAA");
         Node finish = nodes.get("ZZZ");
         long steps = 0;
@@ -47,6 +49,9 @@ public class Day08 {
                 cur = nodes.get(cur.right());
             }
         }
+
+        long part1Time = System.currentTimeMillis();
+        System.out.printf("%5.3f sec\n", (part1Time - startTime) / 1000f);
         System.out.println(steps);
 
         Node[] curs = starts.toArray(new Node[0]);
@@ -113,6 +118,9 @@ public class Day08 {
             }
             steps += periods[0].period;
         } while (!allEnd(curs));
+
+        long part2Time = System.currentTimeMillis();
+        System.out.printf("%5.3f sec\n", (part2Time - part1Time) / 1000f);
         System.out.println(steps - periods[0].period);
     }
 
