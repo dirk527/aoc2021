@@ -90,11 +90,11 @@ public class Day12 {
                 }
             } else {
                 if (ground[groundIdx] == '.') {
-                    ret = stepEmpty(0);
+                    ret = stepEmpty();
                 } else if (ground[groundIdx] == '#') {
-                    ret = stepSpring(0);
+                    ret = stepSpring();
                 } else if (ground[groundIdx] == '?') {
-                    ret = stepSpring(-1) + stepEmpty(-1);
+                    ret = stepSpring() + stepEmpty();
                 }
             }
             if (ret < 0) {
@@ -104,7 +104,7 @@ public class Day12 {
             return ret;
         }
 
-        private long stepSpring(int unknownOffset) {
+        private long stepSpring() {
             if (numberIdx == numbers.size() || curGroup >= numbers.get(numberIdx)) {
                 // cutoff: trying to parse as a sprint, but no numbers left or group is already full
                 return 0;
@@ -113,7 +113,7 @@ public class Day12 {
             }
         }
 
-        private long stepEmpty(int unknownOffset) {
+        private long stepEmpty() {
             if (curGroup > 0) {
                 // first step onto empty
                 if (numbers.get(numberIdx) == curGroup) {
