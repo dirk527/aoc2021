@@ -52,16 +52,6 @@ public class Day12 {
         System.out.printf("%5.3f sec\n", (endTime - p1Time) / 1000f);
     }
 
-    private static int countUnknown(char[] ground) {
-        int u = 0;
-        for (char c : ground) {
-            if (c == '?') {
-                u++;
-            }
-        }
-        return u;
-    }
-
     static class State {
         private final char[] ground;
         private final int groundIdx;
@@ -69,19 +59,17 @@ public class Day12 {
         private final List<Integer> numbers;
         private final int numberIdx;
 
-        private final int unknownCount;
         private final int curGroup;
 
         private final HashMap<State, Long> cache;
 
         public State(char[] ground, List<Integer> numbers) {
-            this(ground, numbers, countUnknown(ground), 0, 0, 0, new HashMap<>());
+            this(ground, numbers, 0, 0, 0, new HashMap<>());
         }
 
-        private State(char[] ground, List<Integer> numbers, int unknownCount, int curGroup, int groundIdx, int numberIdx, HashMap<State, Long> cache) {
+        private State(char[] ground, List<Integer> numbers, int curGroup, int groundIdx, int numberIdx, HashMap<State, Long> cache) {
             this.ground = ground;
             this.numbers = numbers;
-            this.unknownCount = unknownCount;
             this.curGroup = curGroup;
             this.groundIdx = groundIdx;
             this.numberIdx = numberIdx;
@@ -121,7 +109,7 @@ public class Day12 {
                 // cutoff: trying to parse as a sprint, but no numbers left or group is already full
                 return 0;
             } else {
-                return new State(ground, numbers, unknownCount + unknownOffset, curGroup + 1, groundIdx + 1, numberIdx, cache).countPossibilities();
+                return new State(ground, numbers, curGroup + 1, groundIdx + 1, numberIdx, cache).countPossibilities();
             }
         }
 
@@ -130,13 +118,13 @@ public class Day12 {
                 // first step onto empty
                 if (numbers.get(numberIdx) == curGroup) {
                     // used up one number correctly
-                    return new State(ground, numbers, unknownCount + unknownOffset, 0, groundIdx + 1, numberIdx + 1, cache).countPossibilities();
+                    return new State(ground, numbers, 0, groundIdx + 1, numberIdx + 1, cache).countPossibilities();
                 } else {
                     // tried to use up a number incorrectly
                     return 0;
                 }
             } else {
-                return new State(ground, numbers, unknownCount + unknownOffset, 0, groundIdx + 1, numberIdx, cache).countPossibilities();
+                return new State(ground, numbers, 0, groundIdx + 1, numberIdx, cache).countPossibilities();
             }
         }
 
@@ -147,7 +135,6 @@ public class Day12 {
 
             if (groundIdx != state.groundIdx) return false;
             if (numberIdx != state.numberIdx) return false;
-            if (unknownCount != state.unknownCount) return false;
             return curGroup == state.curGroup;
         }
 
@@ -155,7 +142,6 @@ public class Day12 {
         public int hashCode() {
             int result = groundIdx;
             result = 31 * result + numberIdx;
-            result = 31 * result + unknownCount;
             result = 31 * result + curGroup;
             return result;
         }
