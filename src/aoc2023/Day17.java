@@ -3,12 +3,10 @@ package aoc2023;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.PriorityQueue;
+import java.util.*;
 
-import static aoc2023.Day17.Direction.*;
+import static aoc2023.Day17.Direction.EAST;
+import static aoc2023.Day17.Direction.SOUTH;
 
 public class Day17 {
 
@@ -22,62 +20,41 @@ public class Day17 {
         while ((s = br.readLine()) != null) {
             lines.add(s);
         }
+        int[][] cave = new int[lines.size()][lines.getFirst().length()];
+        for (int r = 0; r < lines.size(); r++) {
+            String line = lines.get(r);
+            for (int c = 0; c < lines.getFirst().length(); c++) {
+                cave[r][c] = Integer.parseInt(line.substring(c, c + 1));
+            }
+        }
 
-        System.out.println(dijkstra(lines, Part.ONE));
-        // 1262 too high
+        System.out.println(dijkstra(cave, Part.ONE));
         long p1Time = System.currentTimeMillis();
         System.out.printf("%5.3f sec\n\n", (p1Time - startTime) / 1000f);
 
-        System.out.println(dijkstra(lines, Part.TWO));
+        System.out.println(dijkstra(cave, Part.TWO));
         long endTime = System.currentTimeMillis();
         System.out.printf("%5.3f sec\n", (endTime - p1Time) / 1000f);
     }
 
-    private static int dijkstra(List<String> lines, Part part) {
-        int nRows = lines.size();
-        int nCols = lines.getFirst().length();
+    private static int dijkstra(int[][] cave, Part part) {
+        int nRows = cave.length;
+        int nCols = cave[0].length;
 
-        int maxSteps = part == Part.ONE ? 3 : 10;
-        int[][] cave = new int[nRows][nCols];
-        int[][][][] dist = new int[nRows][nCols][4][maxSteps];
-        for (int r = 0; r < nRows; r++) {
-            String line = lines.get(r);
-            for (int c = 0; c < nCols; c++) {
-                cave[r][c] = Integer.parseInt(line.substring(c, c + 1));
-                for (int i = 0; i < 4; i++) {
-                    for (int st = 0; st < maxSteps; st++) {
-                        dist[r][c][i][st] = Integer.MAX_VALUE;
-                    }
-                }
-            }
-        }
-
+        HashSet<Node> visited = new HashSet<>();
         PriorityQueue<State> queue = new PriorityQueue<>();
-        State initial = new State(0, 0, NORTH, 0, 0, null);
-        queue.add(new State(0, 1, EAST, 1, cave[0][1], initial));
-        queue.add(new State(1, 0, SOUTH, 1, cave[1][0], initial));
-        int found = -1;
-        while (found == -1) {
+        queue.add(new State(new Node(0, 1, EAST, 1), cave[0][1], null));
+        queue.add(new State(new Node(1, 0, SOUTH, 1), cave[1][0], null));
+        while (!queue.isEmpty()) {
             State cur = queue.remove();
-//            System.out.print(cur);
-            if (dist[cur.row][cur.col][cur.dir.idx()][cur.steps] < Integer.MAX_VALUE) {
-                if (cur.cost < dist[cur.row][cur.col][cur.dir.idx()][cur.steps]) {
-                    throw new IllegalStateException();
-                }
-//                System.out.println(" skip");
+            if (visited.contains(cur.node)) {
                 continue;
             }
 
-            dist[cur.row][cur.col][cur.dir.idx()][cur.steps] = cur.cost;
-            if (cur.row == nRows - 1 && cur.col == nCols - 1 &&
-                    (part == Part.ONE || cur.steps > 2)) {
-//                System.out.println("\n\nThe way: " + cur.cost);
-//                State t = cur;
-//                while (t != null) {
-//                    System.out.println(t);
-//                    t = t.prev;
-//                }
-                found = cur.cost;
+            visited.add(cur.node);
+            if (cur.node.row == nRows - 1 && cur.node.col == nCols - 1 &&
+                    (part == Part.ONE || cur.node.steps > 2)) {
+                return cur.cost;
             }
             if (part == Part.ONE) {
                 cur.addNext(queue, cave);
@@ -85,27 +62,18 @@ public class Day17 {
                 cur.addNextUltra(queue, cave);
             }
         }
-        return found;
+        return -1;
     }
 
     enum Direction {
         NORTH(-1, 0), EAST(0, 1), SOUTH(1, 0), WEST(0, -1);
 
-        final int rOffset;
+        final int rowOffset;
         final int colOffset;
 
-        Direction(int rOffset, int colOffset) {
-            this.rOffset = rOffset;
+        Direction(int rowOffset, int colOffset) {
+            this.rowOffset = rowOffset;
             this.colOffset = colOffset;
-        }
-
-        public int idx() {
-            return switch (this) {
-                case NORTH -> 0;
-                case WEST -> 1;
-                case SOUTH -> 2;
-                case EAST -> 3;
-            };
         }
 
         public Direction left() {
@@ -127,19 +95,16 @@ public class Day17 {
         }
     }
 
+    record Node(int row, int col, Direction dir, int steps) {
+    }
+
     static class State implements Comparable<State> {
-        private int row;
-        private int col;
-        private Direction dir;
-        private int steps;
-        private int cost;
+        Node node;
+        int cost;
         State prev;
 
-        public State(int row, int col, Direction dir, int steps, int cost, State prev) {
-            this.row = row;
-            this.col = col;
-            this.dir = dir;
-            this.steps = steps;
+        public State(Node node, int cost, State prev) {
+            this.node = node;
             this.cost = cost;
             this.prev = prev;
         }
@@ -147,49 +112,48 @@ public class Day17 {
         @Override
         public int compareTo(State o) {
             int ret = cost - o.cost;
-            if (ret == 0 && dir == o.dir) {
-                ret = steps - o.steps;
+            if (ret == 0 && node.dir == o.node.dir) {
+                ret = node.steps - o.node.steps;
             }
             if (ret == 0) {
-                ret = o.row + o.col - row - col;
+                ret = o.node.row + o.node.col - node.row - node.col;
             }
             return ret;
         }
 
         private void addNextWhenInBounds(Collection<State> out, Direction d, int[][] costs) {
-            int nr = row + d.rOffset;
-            int nc = col + d.colOffset;
+            int nr = node.row + d.rowOffset;
+            int nc = node.col + d.colOffset;
             if (nr >= 0 && nr < costs.length && nc >= 0 && nc < costs[0].length) {
-                int nSteps = dir == d ? steps + 1 : 0;
-                State nxt = new State(nr, nc, d, nSteps, cost + costs[nr][nc], this);
-//                System.out.print(" add (" + nxt + ")");
+                int nSteps = node.dir == d ? node.steps + 1 : 0;
+                State nxt = new State(new Node(nr, nc, d, nSteps), cost + costs[nr][nc], this);
                 out.add(nxt);
             }
         }
 
         public void addNext(Collection<State> out, int[][] costs) {
-            if (steps < 2) {
-                addNextWhenInBounds(out, dir, costs);
+            if (node.steps < 2) {
+                addNextWhenInBounds(out, node.dir, costs);
             }
-            addNextWhenInBounds(out, dir.left(), costs);
-            addNextWhenInBounds(out, dir.right(), costs);
+            addNextWhenInBounds(out, node.dir.left(), costs);
+            addNextWhenInBounds(out, node.dir.right(), costs);
         }
 
         public void addNextUltra(Collection<State> out, int[][] costs) {
-            if (steps < 9) {
-                addNextWhenInBounds(out, dir, costs);
+            if (node.steps < 9) {
+                addNextWhenInBounds(out, node.dir, costs);
             }
-            if (steps > 2) {
-                addNextWhenInBounds(out, dir.left(), costs);
-                addNextWhenInBounds(out, dir.right(), costs);
+            if (node.steps > 2) {
+                addNextWhenInBounds(out, node.dir.left(), costs);
+                addNextWhenInBounds(out, node.dir.right(), costs);
             }
         }
 
         @Override
         public String toString() {
-            return row + "," + col + " " + steps + " " + dir + " | " + cost;
+            return node.row + "," + node.col + " " + node.steps + " " + node.dir + " | " + cost;
         }
     }
 
-    enum Part { ONE, TWO }
+    enum Part {ONE, TWO}
 }
