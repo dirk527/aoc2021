@@ -98,13 +98,10 @@ public class Day18 {
             boolean lastAdded = false;
             long lastX = minx - 1;
             for (var event : trench.eventsAt(y).entrySet()) {
-//                System.out.print(event.getKey() + " - " + event.getValue());
                 if (inTrench || inside) {
                     long add = event.getKey() - lastX;
-//                    System.out.print(" add " + add);
                     lagoon += add;
                     if (!lastAdded) {
-//                        System.out.print(" add startpoint ");
                         lagoon++;
                     }
                     lastAdded = true;
@@ -145,7 +142,6 @@ public class Day18 {
             this.xOffset = xOffset;
             this.yOffset = yOffset;
         }
-
 
         public static Direction find(String in) {
             return switch (in) {
@@ -213,7 +209,6 @@ public class Day18 {
         HashMap<Long, TreeMap<Long, Character>> lines = new HashMap<>();
 
         public void put(Pos cur, char c) {
-//            System.out.println("Trench put cur = " + cur + ", c = " + c);
             lines.computeIfAbsent(cur.y, y -> new TreeMap<>()).put(cur.x, c);
         }
 
