@@ -3,16 +3,14 @@ package aoc2023;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 public class Day18 {
 
     public static void main(String[] args) throws IOException {
         long startTime = System.currentTimeMillis();
-//        BufferedReader br = new BufferedReader(new FileReader("18-input.txt"));
-        BufferedReader br = new BufferedReader(new FileReader("18-sample.txt"));
+        BufferedReader br = new BufferedReader(new FileReader("18-input.txt"));
+//        BufferedReader br = new BufferedReader(new FileReader("18-sample.txt"));
 
         String s;
         List<String> commands = new ArrayList<>();
@@ -34,11 +32,8 @@ public class Day18 {
         long miny = 0;
         long maxx = 0;
         long maxy = 0;
-        long curx = 0;
-        long cury = 0;
         Pos cur = new Pos(0, 0);
-        HashMap<Pos, Character> holes = new HashMap<>();
-        holes.put(cur, '*');
+        Trench trench = new Trench();
         Direction first = null;
         Direction prev = null;
         for (String command : commands) {
@@ -48,51 +43,87 @@ public class Day18 {
             if (first == null) {
                 first = dir;
             }
-            if (prev != null) {
-                holes.put(cur, prev.symbol(dir));
-            }
             long steps = part == Part.ONE ? Long.parseLong(cmdParts[1]) : Long.parseLong(cmdParts[2].substring(2, 7), 16);
             System.out.println(" " + dir + " " + steps);
-            for (int i = 0; i < steps; i++) {
-                cur = cur.move(dir);
-                holes.put(cur, dir.symbol(dir));
+            if (prev != null) {
+                trench.put(cur, prev.symbol(dir));
+            }
+            if (dir == Direction.UP || dir == Direction.DOWN) {
+                for (int i = 0; i < steps; i++) {
+                    cur = cur.move(dir);
+                    trench.put(cur, dir.symbol(dir));
+                    miny = Math.min(miny, cur.y);
+                    maxy = Math.max(maxy, cur.y);
+                }
+            } else {
+                cur = new Pos(cur.x + dir.xOffset * steps, cur.y);
                 minx = Math.min(minx, cur.x);
-                miny = Math.min(miny, cur.y);
                 maxx = Math.max(maxx, cur.x);
-                maxy = Math.max(maxy, cur.y);
             }
             prev = dir;
         }
-        holes.put(cur, prev.symbol(first));
+        trench.put(cur, prev.symbol(first));
 
+        System.out.println("minx = " + minx + "; maxx = " + maxx + "; miny = " + miny + "; maxy = " + maxy);
         if (part == Part.ONE) {
             for (long y = maxy; y >= miny; y--) {
-                for (long x = minx; x <= maxx; x++) {
-                    Character c = holes.get(new Pos(x, y));
-                    System.out.print(c != null ? c : " ");
+                long lastX = minx - 1;
+                boolean intrench = false;
+
+                for (var event : trench.eventsAt(y).entrySet()) {
+                    char c = event.getValue();
+                    for (int i = 0; i < event.getKey() - lastX - 1; i++) {
+                        System.out.print(intrench ? "-" : ".");
+                    }
+                    if (c == 'F' || c == '7') {
+                        intrench = !intrench;
+                    }
+                    if (c == 'J' || c == 'L') {
+                        intrench = !intrench;
+                    }
+                    System.out.print(c);
+                    lastX = event.getKey();
                 }
                 System.out.println();
             }
-            System.out.println(holes.size());
         }
-        System.out.println("minx = " + minx + "; maxx = " + maxx + "; miny = " + miny + "; maxy = " + maxy);
 
         long lagoon = 0;
         for (long y = maxy; y >= miny; y--) {
-                System.out.println("y= " + y);
+            if (y % 100000 == 0) {
+                System.out.println("y=" + y);
+            }
             boolean inside = false;
-            for (long x = minx; x <= maxx; x++) {
-                Character c = holes.get(new Pos(x, y));
-                if (c == null) {
-                    if (inside) {
+            boolean inTrench = false;
+            boolean lastAdded = false;
+            long lastX = minx - 1;
+            for (var event : trench.eventsAt(y).entrySet()) {
+//                System.out.print(event.getKey() + " - " + event.getValue());
+                if (inTrench || inside) {
+                    long add = event.getKey() - lastX;
+//                    System.out.print(" add " + add);
+                    lagoon += add;
+                    if (!lastAdded) {
+//                        System.out.print(" add startpoint ");
                         lagoon++;
                     }
+                    lastAdded = true;
                 } else {
-                    lagoon++;
-                    if (c == '|' || c == 'F' || c == '7') {
-                        inside = !inside;
-                    }
+                    lastAdded = false;
                 }
+                char c = event.getValue();
+                if (c == '|') {
+                    inside = !inside;
+                }
+                if (c == 'F' || c == '7') {
+                    inside = !inside;
+                    inTrench = !inTrench;
+                }
+                if (c == 'J' || c == 'L') {
+                    inTrench = !inTrench;
+                }
+                lastX = event.getKey();
+//                System.out.println();
             }
         }
         return lagoon;
@@ -177,4 +208,17 @@ public class Day18 {
     }
 
     enum Part {ONE, TWO}
+
+    static class Trench {
+        HashMap<Long, TreeMap<Long, Character>> lines = new HashMap<>();
+
+        public void put(Pos cur, char c) {
+//            System.out.println("Trench put cur = " + cur + ", c = " + c);
+            lines.computeIfAbsent(cur.y, y -> new TreeMap<>()).put(cur.x, c);
+        }
+
+        public TreeMap<Long, Character> eventsAt(long y) {
+            return lines.get(y);
+        }
+    }
 }
