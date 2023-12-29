@@ -50,59 +50,54 @@ public class Day21 {
         long p1Time = System.currentTimeMillis();
         System.out.printf("%5.3f sec\n\n", (p1Time - startTime) / 1000f);
 
-        // 26501365 steps is 202300 * 131 + 65. This is not random - you can reach every side of the starting square in
-        // 65 steps, and 131 further out for another square.
-        // figure out whole squares even/odd
-        steps = 0;
-        cur.clear();
-        cur.add(start);
-        HashSet<Pos> even = new HashSet<>();
-        HashSet<Pos> odd = new HashSet<>();
-        while (steps < 131) {
-            int rem = steps % 2;
-            HashSet<Pos> block = rem == 0 ? even : odd;
-            Set<Pos> next = new HashSet<>();
-            for (Pos p : cur) {
-                p.possibleMoves(map, next, block);
-            }
-            block.addAll(next);
-            steps++;
-            cur = next;
-            System.out.printf("%4d steps: %d even %d odd\n", steps, even.size(), odd.size());
-        }
-        long evenWhole = even.size();
-        long oddWhole = odd.size();
+        // for debugging: print out the real simulated results up to n=6
+        // simulateFor(map, 65 + 131 * 6, List.of(start), true);
 
-        // figure out how many even / odd can be reached from the corners
-        even.clear();
-        odd.clear();
-        cur.clear();
-        cur.add(new Pos(0, 0));
-        cur.add(new Pos(0, nCols - 1));
-        cur.add(new Pos(nRows - 1, 0));
-        cur.add(new Pos(nRows - 1, nCols - 1));
-        steps = 0;
-        while (steps < 65) {
-            int rem = steps % 2;
-            HashSet<Pos> block = rem == 0 ? even : odd;
-            Set<Pos> next = new HashSet<>();
-            for (Pos p : cur) {
-                p.possibleMoves(map, next, block);
-            }
-            block.addAll(next);
-            steps++;
-            cur = next;
-            System.out.printf("%4d corner steps: %d even %d odd\n", steps, even.size(), odd.size());
-        }
-        long evenCorners = even.size();
-        long oddCorners = odd.size();
+        // 26501365 steps is 202300 * 131 + 65. This is not random - you can reach every side of the starting square in
+        // 65 steps, and every 131 further moves out a whole more square.
+        // figure out whole squares even/odd
+        SimulationResult wholeSquare = simulateFor(map, 131, List.of(start), false);
+        SimulationResult corners = simulateFor(map, 65, List.of(start), false);
+
+        // for debugging: print out the calculated results up to n=6
+        //for (int n = 0; n < 7; n += 2) {
+        //    long result = (n + 1) * (n + 1) * wholeSquare.odd + n * n * wholeSquare.even - (n + 1) * (wholeSquare.odd - corners.odd) + n * (wholeSquare.even - corners.even);
+        //    System.out.printf("n=%2d -> %d\n", n, result);
+        //}
 
         long n = 202300;
-        long result = (n + 1) * (n + 1) * oddWhole + n * n * evenWhole - (n + 1) * oddCorners + n * evenCorners;
-
+        long result = (n + 1) * (n + 1) * wholeSquare.odd + n * n * wholeSquare.even - (n + 1) * (wholeSquare.odd - corners.odd) + n * (wholeSquare.even - corners.even);
         System.out.println(result);
+
         long endTime = System.currentTimeMillis();
         System.out.printf("%5.3f sec\n\n", (endTime - p1Time) / 1000f);
+    }
+
+    static SimulationResult simulateFor(char[][] map, long maxSteps, List<Pos> start, boolean infinite) {
+        long steps = 0;
+        Set<Pos> cur = new HashSet<>(start);
+        HashSet<Pos> even = new HashSet<>();
+        HashSet<Pos> odd = new HashSet<>();
+        while (steps < maxSteps) {
+            long rem = steps % 2;
+            HashSet<Pos> block = rem == 0 ? odd : even;
+            Set<Pos> next = new HashSet<>();
+            for (Pos p : cur) {
+                if (infinite) {
+                    p.possibleMovesTwo(map, next, block);
+                } else {
+                    p.possibleMoves(map, next, block);
+                }
+            }
+            block.addAll(next);
+            steps++;
+            cur = next;
+            if ((steps - 65) % 131 == 0) {
+                System.out.printf("n=%2d %7d steps: even %d odd %d\n", (steps - 65) / 131, steps, even.size(), odd.size());
+            }
+        }
+
+        return new SimulationResult(even.size(), odd.size());
     }
 
     enum Direction {
@@ -135,5 +130,29 @@ public class Day21 {
                 }
             }
         }
+
+        public void possibleMovesTwo(char[][] map, Collection<Pos> out, Collection<Pos> block) {
+            int nRows = map.length;
+            int nCols = map[0].length;
+            for (Direction dir : Direction.values()) {
+                Pos p = dir.walkFrom(this);
+                if (block.contains(p)) {
+                    continue;
+                }
+                int row = (int) (p.row % nRows);
+                if (row < 0) {
+                    row += nRows;
+                }
+                int col = (int) (p.col % nCols);
+                if (col < 0) {
+                    col += nCols;
+                }
+                if (map[row][col] == '.') {
+                    out.add(p);
+                }
+            }
+        }
     }
+
+    record SimulationResult(long even, long odd){}
 }
