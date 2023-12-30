@@ -3,6 +3,8 @@ package aoc2023;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -57,6 +59,75 @@ public class Day24 {
         }
         System.out.println(count);
 
+        // part 2: see JPG for how I arrived at these formulas
+        Hailstone one = hail.get(0);
+        BigDecimal[][] matrix = new BigDecimal[4][5];
+        for (int i = 0; i < 4; i++) {
+            Hailstone two = hail.get(i + 1);
+            matrix[i][0] = BigDecimal.valueOf(one.sy).subtract(BigDecimal.valueOf(two.sy));
+            matrix[i][1] = BigDecimal.valueOf(two.sx).subtract(BigDecimal.valueOf(one.sx));
+            matrix[i][2] = BigDecimal.valueOf(two.vy).subtract(BigDecimal.valueOf(one.vy));
+            matrix[i][3] = BigDecimal.valueOf(one.vx).subtract(BigDecimal.valueOf(two.vx));
+            matrix[i][4] = BigDecimal.valueOf(one.sy).multiply(BigDecimal.valueOf(one.vx)).subtract(BigDecimal.valueOf(one.sx).multiply(BigDecimal.valueOf(one.vy))).subtract(BigDecimal.valueOf(two.sy).multiply(BigDecimal.valueOf(two.vx))).add(BigDecimal.valueOf(two.sx).multiply(BigDecimal.valueOf(two.vy)));
+        }
+
+        gauss(matrix);
+
+        BigDecimal rsy = matrix[3][4].divide(matrix[3][3], MathContext.DECIMAL128);
+        BigDecimal rsx = (matrix[2][4].subtract(matrix[2][3].multiply(rsy))).divide(matrix[2][2], MathContext.DECIMAL128);
+        BigDecimal rvy = (matrix[1][4].subtract(matrix[1][3].multiply(rsy)).subtract(matrix[1][2].multiply(rsx))).divide(matrix[1][1], MathContext.DECIMAL128);
+        BigDecimal rvx = (matrix[0][4].subtract(matrix[0][3].multiply(rsy)).subtract(matrix[0][2].multiply(rsx)).subtract(matrix[0][1].multiply(rvy)).divide(matrix[0][0], MathContext.DECIMAL128));
+
+        BigDecimal t1 = (BigDecimal.valueOf(one.sx).subtract(rsx)).divide(rvx.subtract(BigDecimal.valueOf(one.vx)), MathContext.DECIMAL128);
+        BigDecimal z1 = BigDecimal.valueOf(one.sz).add(t1.multiply(BigDecimal.valueOf(one.vz)));
+        Hailstone two = hail.get(1);
+        BigDecimal t2 = (BigDecimal.valueOf(two.sx).subtract(rsx)).divide(rvx.subtract(BigDecimal.valueOf(two.vx)), MathContext.DECIMAL128);
+        BigDecimal z2 = BigDecimal.valueOf(two.sz).add(t2.multiply(BigDecimal.valueOf(two.vz)));
+        BigDecimal rvz = (z2.subtract(z1)).divide(t2.subtract(t1), MathContext.DECIMAL128);
+        BigDecimal rsz = z1.subtract(rvz.multiply(t1));
+
+//        System.out.printf("t1=%f t2=%f z1=%f z2=%f\n", t1, t2, z1, z2);
+//        System.out.printf("rsx=%f rsy=%f rsz=%f rvx=%f rvy=%f rvz=%f\n", rsx, rsy, rsz, rvx, rvy, rvz);
+
+        System.out.println(rsx.add(rsy).add(rsz).longValue());
+    }
+
+    static void gauss(BigDecimal[][] matrix) {
+        int pivotRow = 0;
+        int pivotCol = 0;
+        int nRows = matrix.length;
+        int nCols = matrix[0].length;
+        while (pivotRow < nRows && pivotCol < nCols) {
+            BigDecimal max = BigDecimal.ZERO;
+            int idxMax = -1;
+            for (int i = pivotRow; i < nRows; i++) {
+                BigDecimal cand = matrix[i][pivotCol].abs();
+                if (cand.compareTo(max) > 0) {
+                    max = cand;
+                    idxMax = i;
+                }
+            }
+            if (matrix[idxMax][pivotCol].equals(BigDecimal.ZERO)) {
+                // nothing to pivot in this column
+                pivotCol++;
+            } else {
+                // swap rows idxMax and pivotRow
+                BigDecimal[] tmp = matrix[pivotRow];
+                matrix[pivotRow] = matrix[idxMax];
+                matrix[idxMax] = tmp;
+                for (int i = pivotRow + 1; i < nRows; i++) {
+                    // for all lower rows, subtract so that matrix[i][pivotCol] becomes 0
+                    BigDecimal factor = matrix[i][pivotCol].divide(matrix[pivotRow][pivotCol], MathContext.DECIMAL128);
+                    matrix[i][pivotCol] = BigDecimal.ZERO;
+                    for (int j = pivotCol + 1; j < nCols; j++) {
+                        // only need to go right, to the left it's all zeros anyway
+                        matrix[i][j] = matrix[i][j].subtract(factor.multiply(matrix[pivotRow][j]));
+                    }
+                }
+            }
+            pivotCol++;
+            pivotRow++;
+        }
     }
 
     static class Hailstone {
