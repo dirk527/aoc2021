@@ -11,9 +11,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Day24 {
+    private static final MathContext CONTEXT = MathContext.DECIMAL128;
 
     public static void main(String[] args) throws IOException {
-        long startTime = System.currentTimeMillis();
         BufferedReader br = new BufferedReader(new FileReader("24-input.txt"));
 //        BufferedReader br = new BufferedReader(new FileReader("24-sample.txt"));
 
@@ -61,29 +61,34 @@ public class Day24 {
 
         // part 2: see JPG for how I arrived at these formulas
         Hailstone one = hail.get(0);
+        // turns out - Java double is 64 bit, and the numbers in the real input are too large to be accurately
+        // represented. The final result is 5 off due to rounding errors. 128 Bit-BigDecimals are good enough.
         BigDecimal[][] matrix = new BigDecimal[4][5];
         for (int i = 0; i < 4; i++) {
             Hailstone two = hail.get(i + 1);
-            matrix[i][0] = BigDecimal.valueOf(one.sy).subtract(BigDecimal.valueOf(two.sy));
-            matrix[i][1] = BigDecimal.valueOf(two.sx).subtract(BigDecimal.valueOf(one.sx));
-            matrix[i][2] = BigDecimal.valueOf(two.vy).subtract(BigDecimal.valueOf(one.vy));
-            matrix[i][3] = BigDecimal.valueOf(one.vx).subtract(BigDecimal.valueOf(two.vx));
-            matrix[i][4] = BigDecimal.valueOf(one.sy).multiply(BigDecimal.valueOf(one.vx)).subtract(BigDecimal.valueOf(one.sx).multiply(BigDecimal.valueOf(one.vy))).subtract(BigDecimal.valueOf(two.sy).multiply(BigDecimal.valueOf(two.vx))).add(BigDecimal.valueOf(two.sx).multiply(BigDecimal.valueOf(two.vy)));
+            matrix[i][0] = bd(one.sy).subtract(bd(two.sy));
+            matrix[i][1] = bd(two.sx).subtract(bd(one.sx));
+            matrix[i][2] = bd(two.vy).subtract(bd(one.vy));
+            matrix[i][3] = bd(one.vx).subtract(bd(two.vx));
+            matrix[i][4] = bd(one.sy).multiply(bd(one.vx))
+                    .subtract(bd(one.sx).multiply(bd(one.vy)))
+                    .subtract(bd(two.sy).multiply(bd(two.vx)))
+                    .add(bd(two.sx).multiply(bd(two.vy)));
         }
 
         gauss(matrix);
 
-        BigDecimal rsy = matrix[3][4].divide(matrix[3][3], MathContext.DECIMAL128);
-        BigDecimal rsx = (matrix[2][4].subtract(matrix[2][3].multiply(rsy))).divide(matrix[2][2], MathContext.DECIMAL128);
-        BigDecimal rvy = (matrix[1][4].subtract(matrix[1][3].multiply(rsy)).subtract(matrix[1][2].multiply(rsx))).divide(matrix[1][1], MathContext.DECIMAL128);
-        BigDecimal rvx = (matrix[0][4].subtract(matrix[0][3].multiply(rsy)).subtract(matrix[0][2].multiply(rsx)).subtract(matrix[0][1].multiply(rvy)).divide(matrix[0][0], MathContext.DECIMAL128));
+        BigDecimal rsy = matrix[3][4].divide(matrix[3][3], CONTEXT);
+        BigDecimal rsx = (matrix[2][4].subtract(matrix[2][3].multiply(rsy))).divide(matrix[2][2], CONTEXT);
+        BigDecimal rvy = (matrix[1][4].subtract(matrix[1][3].multiply(rsy)).subtract(matrix[1][2].multiply(rsx))).divide(matrix[1][1], CONTEXT);
+        BigDecimal rvx = (matrix[0][4].subtract(matrix[0][3].multiply(rsy)).subtract(matrix[0][2].multiply(rsx)).subtract(matrix[0][1].multiply(rvy)).divide(matrix[0][0], CONTEXT));
 
-        BigDecimal t1 = (BigDecimal.valueOf(one.sx).subtract(rsx)).divide(rvx.subtract(BigDecimal.valueOf(one.vx)), MathContext.DECIMAL128);
-        BigDecimal z1 = BigDecimal.valueOf(one.sz).add(t1.multiply(BigDecimal.valueOf(one.vz)));
+        BigDecimal t1 = (bd(one.sx).subtract(rsx)).divide(rvx.subtract(bd(one.vx)), CONTEXT);
+        BigDecimal z1 = bd(one.sz).add(t1.multiply(bd(one.vz)));
         Hailstone two = hail.get(1);
-        BigDecimal t2 = (BigDecimal.valueOf(two.sx).subtract(rsx)).divide(rvx.subtract(BigDecimal.valueOf(two.vx)), MathContext.DECIMAL128);
-        BigDecimal z2 = BigDecimal.valueOf(two.sz).add(t2.multiply(BigDecimal.valueOf(two.vz)));
-        BigDecimal rvz = (z2.subtract(z1)).divide(t2.subtract(t1), MathContext.DECIMAL128);
+        BigDecimal t2 = (bd(two.sx).subtract(rsx)).divide(rvx.subtract(bd(two.vx)), CONTEXT);
+        BigDecimal z2 = bd(two.sz).add(t2.multiply(bd(two.vz)));
+        BigDecimal rvz = (z2.subtract(z1)).divide(t2.subtract(t1), CONTEXT);
         BigDecimal rsz = z1.subtract(rvz.multiply(t1));
 
 //        System.out.printf("t1=%f t2=%f z1=%f z2=%f\n", t1, t2, z1, z2);
@@ -92,7 +97,12 @@ public class Day24 {
         System.out.println(rsx.add(rsy).add(rsz).longValue());
     }
 
+    static BigDecimal bd(double in) {
+        return BigDecimal.valueOf(in);
+    }
+    
     static void gauss(BigDecimal[][] matrix) {
+        // See https://en.wikipedia.org/wiki/Gaussian_elimination
         int pivotRow = 0;
         int pivotCol = 0;
         int nRows = matrix.length;
@@ -117,7 +127,7 @@ public class Day24 {
                 matrix[idxMax] = tmp;
                 for (int i = pivotRow + 1; i < nRows; i++) {
                     // for all lower rows, subtract so that matrix[i][pivotCol] becomes 0
-                    BigDecimal factor = matrix[i][pivotCol].divide(matrix[pivotRow][pivotCol], MathContext.DECIMAL128);
+                    BigDecimal factor = matrix[i][pivotCol].divide(matrix[pivotRow][pivotCol], CONTEXT);
                     matrix[i][pivotCol] = BigDecimal.ZERO;
                     for (int j = pivotCol + 1; j < nCols; j++) {
                         // only need to go right, to the left it's all zeros anyway
