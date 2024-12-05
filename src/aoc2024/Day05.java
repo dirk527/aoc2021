@@ -4,8 +4,9 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Optional;
 
 public class Day05 {
     public static void main(String[] args) throws IOException {
@@ -17,28 +18,49 @@ public class Day05 {
             constraints.add(new Constraint(Integer.parseInt(parts[0]), Integer.parseInt(parts[1])));
         }
         List<List<Integer>> printRuns = new ArrayList<>();
-        int p1 = 0;
         while ((s = br.readLine()) != null) {
-            System.out.println();
-            constraints.forEach(Constraint::reset);
+            List<Integer> run = new ArrayList<>();
             String[] parts = s.split(",");
             for (String part : parts) {
-                int cur = Integer.parseInt(part);
-                System.out.println("-> " + cur);
+                run.add(Integer.parseInt(part));
+            }
+            printRuns.add(run);
+        }
+
+        int p1 = 0;
+        List<List<Integer>> failedRuns = new ArrayList<>();
+        for (List<Integer> run : printRuns) {
+            constraints.forEach(Constraint::reset);
+            for (int cur : run) {
                 constraints.forEach(c -> c.print(cur));
             }
-            constraints.forEach(System.out::println);
-//            Optional<Boolean> allHappy = constraints.stream().map(Constraint::happy).reduce((a, b) -> a && b);
-            AtomicBoolean allHappy = new AtomicBoolean(true);
-            constraints.forEach(c -> allHappy.set(allHappy.get() && c.happy()));
+            Optional<Boolean> allHappy = constraints.stream()
+                    .map(Constraint::happy)
+                    .reduce((a, b) -> a && b);
             if (allHappy.get()) {
-                int middle = Integer.parseInt(parts[parts.length / 2]);
-                System.out.println("*** yo " + middle);
-                p1 += middle;
+                p1 += run.get(run.size() / 2);
+            } else {
+                failedRuns.add(run);
             }
         }
 
         System.out.println(p1);
+
+        Comparator<Integer> comp = (i1, i2) -> {
+            for (Constraint c : constraints) {
+                int cur = c.compare(i1, i2);
+                if (cur != 0) {
+                    return cur;
+                }
+            }
+            return 0;
+        };
+        int p2 = 0;
+        for (List<Integer> run : failedRuns) {
+            run.sort(comp);
+            p2 += run.get(run.size() / 2);
+        }
+        System.out.println(p2);
     }
 
     static class Constraint {
@@ -59,10 +81,8 @@ public class Day05 {
                 if (twoPrinted) {
                     happy = false;
                 }
-                System.out.println(this + " onePrinted");
             } else if (page == two) {
                 twoPrinted = true;
-                System.out.println(this + " twoPrinted");
             }
         }
 
@@ -79,6 +99,16 @@ public class Day05 {
             onePrinted = false;
             twoPrinted = false;
             happy = true;
+        }
+
+        public int compare(Integer i1, Integer i2) {
+            if (i1 == one && i2 == two) {
+                return -1;
+            }
+            if (i1 == two && i2 == one) {
+                return 1;
+            }
+            return 0;
         }
     }
 }
