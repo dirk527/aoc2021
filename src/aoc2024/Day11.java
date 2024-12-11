@@ -11,126 +11,51 @@ public class Day11 {
         String s = br.readLine();
         String[] numbers = s.split(" ");
 
-        Line line = new Line();
+        int steps = 25;
+        long result = 0;
         for (String number : numbers) {
-            line.addStone(Long.parseLong(number));
+            result += calculate(new Simulation(Long.parseLong(number), steps));
         }
+        System.out.println(result);
 
-//        for (int i = 0; i < 25; i++) {
-//            line.blink();
-//        }
-
-        line.calculate(45);
-        System.out.println(line.size());
-
-//        System.out.println(p2);
+        steps = 75;
+        result = 0;
+        for (String number : numbers) {
+            result += calculate(new Simulation(Long.parseLong(number), steps));
+        }
+        System.out.println(result);
     }
 
-    static HashMap<Simulation, Line> cache = new HashMap<>();
+    static HashMap<Simulation, Long> cache = new HashMap<>();
 
-    record Simulation(long number, int steps){}
-
-    static class Stone {
-        Stone prev;
-        Stone next;
-        long number;
-
-        public Stone(long l) {
-            number = l;
+    private static long calculate(Simulation sim) {
+        if (sim.steps == 0) {
+            return 1;
         }
-    }
 
-    static class Line {
-        Stone first;
-        Stone last;
+        Long cached = cache.get(sim);
+        if (cached != null) {
+            return cached;
+        }
 
-        public void addStone(long l) {
-            Stone stone = new Stone(l);
-            if (first == null) {
-                first = stone;
-                last = stone;
+        long result;
+        int nextSteps = sim.steps - 1;
+        if (sim.number == 0) {
+            result = calculate(new Simulation(1L, nextSteps));
+        } else {
+            int digits = (int) Math.log10(sim.number) + 1;
+            if (digits % 2 == 0) {
+                long divisor = (long) Math.pow(10, digits / 2);
+                result = calculate(new Simulation(sim.number / divisor, nextSteps)) +
+                        calculate(new Simulation(sim.number % divisor, nextSteps));
             } else {
-                last.next = stone;
-                stone.prev = last;
-                last = stone;
+                result = calculate(new Simulation(sim.number * 2024, nextSteps));
             }
         }
+        cache.put(sim, result);
+        return result;
+    }
 
-        public void blink() {
-            for (Stone cur = first; cur != null; cur = cur.next) {
-                if (cur.number == 0) {
-                    cur.number = 1;
-                } else {
-                    int digits = (int) Math.log10(cur.number) + 1;
-                    if (digits % 2 == 0) {
-                        long divisor = (long) Math.pow(10, digits / 2);
-                        Stone left = new Stone(cur.number / divisor);
-                        cur.number = cur.number % divisor;
-                        left.prev = cur.prev;
-                        left.next = cur;
-                        if (left.prev != null) {
-                            left.prev.next = left;
-                        } else {
-                            first = left;
-                        }
-                        left.next.prev = left;
-                    } else {
-                        cur.number *= 2024L;
-                    }
-                }
-            }
-        }
-
-        public void println() {
-            for (Stone cur = first; cur != null; cur = cur.next) {
-                System.out.print(cur.number);
-                System.out.print(" ");
-            }
-            System.out.println();
-        }
-
-        public long size() {
-            long ret = 0;
-            for (Stone cur = first; cur != null; cur = cur.next) {
-                ret++;
-            }
-            return ret;
-        }
-
-        public void calculate(int blinks) {
-            if (blinks == 0) {
-                return;
-            }
-            for (Stone cur = first; cur != null; cur = cur.next) {
-                Simulation sim = new Simulation(cur.number, blinks);
-                Line cached = cache.get(sim);
-
-                if (cached == null) {
-                    Line next = new Line();
-                    next.addStone(cur.number);
-                    next.calculate(blinks - 1);
-                    next.blink();
-                    cache.put(sim, next);
-                    cached = next;
-                }
-
-                Line copy = new Line();
-                for (Stone inner = cached.first; inner != null; inner = inner.next) {
-                    copy.addStone(inner.number);
-                }
-                copy.first.prev = cur.prev;
-                copy.last.next = cur.next;
-                if (cur.prev != null) {
-                    cur.prev.next = copy.first;
-                } else {
-                    first = copy.first;
-                }
-                if (cur.next != null) {
-                    cur.next.prev = copy.last;
-                } else {
-                    last = copy.last;
-                }
-            }
-        }
+    record Simulation(long number, int steps) {
     }
 }
