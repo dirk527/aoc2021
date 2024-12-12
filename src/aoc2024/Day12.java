@@ -12,6 +12,7 @@ public class Day12 {
     static HashMap<Pos, Plants> plants = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
+        // read and parse
         BufferedReader br = new BufferedReader(new FileReader("12-in"));
         String s;
         List<List<Character>> grid = new ArrayList<>();
@@ -25,7 +26,8 @@ public class Day12 {
             grid.add(line);
         }
 
-        int id = 0;
+        // consolidate into Plants that represent contiguous areas
+        int id = 0; // id is only for easier debugging
         for (int r = 0; r < grid.size(); r++) {
             for (int c = 0; c < grid.get(r).size(); c++) {
                 char cur = grid.get(r).get(c);
@@ -58,22 +60,27 @@ public class Day12 {
                 }
             }
         }
+
+        // debugging output
         for (int r = 0; r < grid.size(); r++) {
             for (int c = 0; c < grid.get(r).size(); c++) {
-                System.out.print(plants.get(new Pos(r,c)));
+                System.out.print(plants.get(new Pos(r, c)));
             }
             System.out.println();
         }
 
         int p1 = 0;
-        for (Plants field : new HashSet<>(plants.values())) {
-            int cost = field.fenceCost();
-            System.out.printf("field %3d: %8d * %2d%n", field.id, cost, field.members.size());
-            p1 += cost;
-        }
-        System.out.println(p1);
         int p2 = 0;
-        System.out.println(p2);
+        for (Plants field : new HashSet<>(plants.values())) {
+            int circ = field.circumference();
+            int fences = field.countSides();
+            System.out.printf("field %4d: %5d * %5d or %4d with discount%n", field.id, field.size(), circ, fences);
+            p1 += circ * field.size();
+            p2 += fences * field.size();
+        }
+
+        System.out.println("p1: " + p1);
+        System.out.println("p2: " + p2);
     }
 
     record Pos(int row, int col) {
@@ -99,7 +106,7 @@ public class Day12 {
             maxCol = Math.max(maxCol, pos.col);
         }
 
-        public int fenceCost() {
+        public int circumference() {
             int circ = 0;
             for (int r = minRow; r <= maxRow; r++) {
                 Plants prev = null;
@@ -127,7 +134,48 @@ public class Day12 {
                     circ++;
                 }
             }
-            return circ * members.size();
+            return circ;
+        }
+
+        public int countSides() {
+            int sides = 0;
+            // from left to right: count horizontal fences by counting the left corners
+            for (int r = minRow; r <= maxRow + 1; r++) {
+                for (int c = minCol; c <= maxCol; c++) {
+                    Plants cur = plants.get(new Pos(r, c));
+                    Plants left = plants.get(new Pos(r, c - 1));
+                    Plants up = plants.get(new Pos(r - 1, c));
+                    Plants leftUp = plants.get(new Pos(r - 1, c - 1));
+                    boolean possibleLeftCorner = (left != cur && (cur == this || left == this)) ||
+                            (up != leftUp && (up == this || leftUp == this));
+                    if (possibleLeftCorner) {
+                        if ((up == this || cur == this) && up != cur) {
+                            sides++;
+                        }
+                    }
+                }
+            }
+            // from top to bottom: count vertical fences by counting the top corners
+            for (int c = minCol; c <= maxCol + 1; c++) {
+                for (int r = minRow; r <= maxRow; r++) {
+                    Plants cur = plants.get(new Pos(r, c));
+                    Plants up = plants.get(new Pos(r - 1, c));
+                    Plants left = plants.get(new Pos(r, c - 1));
+                    Plants leftUp = plants.get(new Pos(r - 1, c - 1));
+                    boolean possibleUpperCorner = (up != cur && (cur == this || up == this)) ||
+                            (left != leftUp && (left == this || leftUp == this));
+                    if (possibleUpperCorner) {
+                        if ((left == this || cur == this) && left != cur) {
+                            sides++;
+                        }
+                    }
+                }
+            }
+            return sides; // * members.size();
+        }
+
+        public int size() {
+            return members.size();
         }
 
         @Override
