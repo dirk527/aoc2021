@@ -3,6 +3,8 @@ package aoc2024;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -12,6 +14,7 @@ public class Day13 {
         BufferedReader br = new BufferedReader(new FileReader("13-in"));
         String s;
         List<Machine> machines = new ArrayList<>();
+        List<Machine> machines2 = new ArrayList<>();
         int ax = -1;
         int ay = -1;
         int bx = -1;
@@ -23,6 +26,7 @@ public class Day13 {
         while ((s = br.readLine()) != null) {
             if (s.isEmpty()) {
                 machines.add(new Machine(ax, ay, bx, by, px, py));
+                machines2.add(new Machine(ax, ay, bx, by, 10000000000000L + px, 10000000000000L + py));
             }
             Matcher bm = btnPat.matcher(s);
             if (bm.matches()) {
@@ -41,12 +45,42 @@ public class Day13 {
             }
         }
         machines.add(new Machine(ax, ay, bx, by, px, py));
+        machines2.add(new Machine(ax, ay, bx, by, 10000000000000L + px, 10000000000000L + py));
 
-        for (Machine machine : machines) {
-            System.out.println(machine);
+        System.out.println(simulate(machines));
+        System.out.println(doMath(machines));
+
+        System.out.println(doMath(machines2));
+    }
+
+    private static long doMath(List<Machine> machines) {
+        long ret = 0;
+        MathContext mc = MathContext.DECIMAL128;
+        for (Machine m : machines) {
+            BigDecimal ay = new BigDecimal(m.ay, mc);
+            BigDecimal ax = new BigDecimal(m.ax, mc);
+            BigDecimal by = new BigDecimal(m.by, mc);
+            BigDecimal bx = new BigDecimal(m.bx, mc);
+            BigDecimal py = new BigDecimal(m.priceY, mc);
+            BigDecimal px = new BigDecimal(m.priceX, mc);
+            BigDecimal zaehler = py.subtract(ay.multiply(px).divide(ax, mc));
+            BigDecimal nenner = by.subtract(ay.multiply(bx).divide(ax, mc));
+            BigDecimal b = zaehler.divide(nenner, mc);
+            BigDecimal a = px.subtract(b.multiply(bx)).divide(ax, mc);
+
+            BigDecimal little = new BigDecimal(.000000000000001d, mc); // longValue() always rounds down
+            long la = a.add(little).longValue();
+            long lb = b.add(little).longValue();
+            if (m.ax * la + m.bx * lb == m.priceX && m.ay * la + m.by * lb == m.priceY) {
+                System.out.println("*** " + la + " " + lb + " " + m);
+                ret += la * 3 + lb;
+            }
         }
+        return ret;
+    }
 
-        int p1 = 0;
+    private static int simulate(List<Machine> machines) {
+        int ret = 0;
         for (Machine machine : machines) {
             PriorityQueue<Step> queue = new PriorityQueue<>();
             Set<Step> handled = new HashSet<>();
@@ -58,14 +92,11 @@ public class Day13 {
                 if (count % 100000 == 0) {
                     System.out.printf("%5d handled, %8d queue, %s%n", handled.size(), queue.size(), step);
                 }
-                if (step.a() > 100 || step.b() > 100) {
-                    continue;
-                }
                 int x = step.a() * machine.ax() + step.b() * machine.bx();
                 int y = step.a() * machine.ay() + step.b() * machine.by();
                 if (x == machine.priceX && y == machine.priceY) {
-                    System.out.println("HIT " + machine + " " + step);
-                    p1 += step.tokens();
+                    System.out.println("Found " + machine + " " + step);
+                    ret += step.tokens();
                     break;
                 }
                 if (x > machine.priceX() || y > machine.priceY()) {
@@ -83,19 +114,10 @@ public class Day13 {
                 }
             }
         }
-
-        int p2 = 0;
-        System.out.println(p1);
-        System.out.println(p2);
+        return ret;
     }
 
-    // a * ax + b * bx == px  |  a = (px - b * bx) / ax
-    // a * ay + b * by == py
-    //
-    // ((px - b * bx) / ax) * ay + b * by == py
-    //
-
-    record Machine(int ax, int ay, int bx, int by, int priceX, int priceY) {
+    record Machine(int ax, int ay, int bx, int by, long priceX, long priceY) {
     }
 
     record Step(int a, int b) implements Comparable<Step> {
