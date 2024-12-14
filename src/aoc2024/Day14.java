@@ -62,6 +62,7 @@ public class Day14 {
         System.out.printf("%d %d %d %d%np1 = %d", lu, ru, ll, rl, lu * ru * ll * rl);
 
         // LOL part 2 we'll use human intelligence then, look at the pictures in Finder or Explorer or whatever
+        // Actually, no: JPG is better at encoding low-entropy pictures, look at the smallest file first!
         File outputDir = new File("day14-pix");
         if (!outputDir.exists() && outputDir.isDirectory()) {
             System.out.println("please create dir " + outputDir);
@@ -79,7 +80,7 @@ public class Day14 {
                 graphics.drawRect((int) pos.col(), (int) pos.row(), 1, 1);
             }
 
-            ImageIO.write(bi, "png", new File(outputDir, "%04d.png".formatted(steps)));
+            ImageIO.write(bi, "jpg", new File(outputDir, "%04d.jpg".formatted(steps)));
         }
     }
 
