@@ -66,7 +66,6 @@ public class Day15 {
         }
 
         print(map);
-        System.out.println(moves);
 
         Pos bot = new Pos(startR, startC);
         for (char move : moves.toCharArray()) {
@@ -87,8 +86,6 @@ public class Day15 {
             } else {
                 bot = doubleWidthMove(map2, bot, dir);
             }
-//            System.out.println("\n" + move);
-//            print(map2);
         }
         print(map2);
 
@@ -149,9 +146,6 @@ public class Day15 {
         } else if (cur == ']') {
             if (canMove(map, new Pos(r, c - 1), dir)) {
                 doMove(map, new Pos(r, c - 1), dir);
-                map.get(r).set(c, '@');
-                map.get(bot.row).set(bot.col, '.');
-                return new Pos(r, c);
             } else {
                 return bot;
             }
