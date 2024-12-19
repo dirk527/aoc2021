@@ -13,7 +13,7 @@ public class Day19 {
     private static HashMap<String, Long> cache = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
-        long start = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
         head = new Node(null);
         BufferedReader br = new BufferedReader(new FileReader("19-in"));
         String[] towels = br.readLine().split(", ");
@@ -40,6 +40,8 @@ public class Day19 {
         }
         System.out.println(p1);
         System.out.println(p2);
+        long endTime = System.currentTimeMillis();
+        System.out.printf("%d ms%n", endTime - startTime);
     }
 
     //  0 white (w), 1 blue (u), 2 black (b), 3 red (r), or 4 green (g)
