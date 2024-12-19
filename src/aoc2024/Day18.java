@@ -20,6 +20,7 @@ public class Day18 {
     private static final int N = 1024;
 
     public static void main(String[] args) throws IOException {
+        long start = System.currentTimeMillis();
         BufferedReader br = new BufferedReader(new FileReader(FILE));
         List<Pos> corrupt = new ArrayList<>();
         String s;
@@ -42,6 +43,8 @@ public class Day18 {
                 break;
             }
         }
+        long end = System.currentTimeMillis();
+        System.out.println((end - start) + " ms");
     }
 
     private static int steps(HashSet<Pos> fallen) {
