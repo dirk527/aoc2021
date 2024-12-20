@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Day20 {
 
@@ -30,78 +31,68 @@ public class Day20 {
             map.add(line);
             row++;
         }
+        System.out.println("start = " + start + "; end = " + end);
 
-        // Run Dijkstra's single source shortest path algorithm, remembering the best path
-        PriorityQueue<State> queue = new PriorityQueue<>();
-        List<State> possiblePaths = new ArrayList<>();
-        State noCheatPath = null;
-        HashMap<Pos, List<Cheat>> visited = new HashMap<>();
-        queue.add(new State(start, 0, NO_CHEAT_YET, null));
-        while (!queue.isEmpty()) {
-            State state = queue.poll();
-            if (end.equals(state.pos)) {
-                HashSet<Pos> path = new HashSet<>();
-                for (State st = state; st != null; st = st.prev) {
-                    path.add(st.pos);
-                }
-                print(map, path);
-                if (state.cheat == NO_CHEAT_YET) {
-                    noCheatPath = state;
-                    System.out.println("no cheat len: " + state.dist);
-                    break;
-                }
-                System.out.println("found: " + state.dist);
-                possiblePaths.add(state);
-                if (possiblePaths.size() % 1000 == 0) {
-                    System.out.printf("%d %d%n", possiblePaths.size(), state.dist);
+        // There's only a single path, find out how long to every square
+        HashMap<Pos, Long> picos = new HashMap<>();
+        long pico = 0;
+        for (Pos cur = start; !cur.equals(end); ) {
+            picos.put(cur, pico);
+            for (Direction direction : Direction.values()) {
+                int rr = cur.row + direction.r;
+                int cc = cur.col + direction.c;
+                Pos next = new Pos(rr, cc);
+                if (picos.get(next) == null) {
+                    if (map.get(rr).get(cc) != '#') {
+                        cur = next;
+                        pico++;
+                        break;
+                    }
                 }
             }
-            for (Direction direction : Direction.values()) {
-                int rr = state.r() + direction.r;
-                int cc = state.c() + direction.c;
-                if (rr < 0 || rr >= map.size() || cc < 0 || cc >= map.get(rr).size()) {
-                    // out of bounds - can happen with cheat
-                    continue;
-                }
+        }
+        picos.put(end, pico);
+        System.out.println("path: " + pico);
+        // best for in: 9316
 
-                char terrain = map.get(rr).get(cc);
-                if (terrain != '#') {
-                    Pos pos = new Pos(rr, cc);
-                    List<Cheat> seenCheats = visited.computeIfAbsent(pos, k -> new ArrayList<>());
-                    Cheat cheat;
-                    if (state.cheat.begin != null && state.cheat.end == null) {
-                        cheat = new Cheat(state.cheat.begin, pos);
-                    } else {
-                        cheat = state.cheat;
-                    }
-                    boolean vis = seenCheats.contains(cheat);
-                    if (!vis) {
-                        seenCheats.add(cheat);
-                        queue.add(new State(pos, state.dist + 1, cheat, state));
+        // Follow the path again, sum up the shortcuts
+        HashMap<Long, AtomicInteger> counts = new HashMap<>();
+        for (Pos cur = start; !cur.equals(end); ) {
+            Pos next = null;
+            for (Direction direction : Direction.values()) {
+                int rr = cur.row + direction.r;
+                int cc = cur.col + direction.c;
+                Pos candNext = new Pos(rr, cc);
+                if (map.get(rr).get(cc) != '#') {
+                    if (picos.getOrDefault(candNext, Long.MAX_VALUE) == picos.getOrDefault(cur, -10L) + 1) {
+                        next = candNext;
                     }
                 } else {
-                    if (state.cheat == NO_CHEAT_YET && false) {
-                        Pos pos = new Pos(rr, cc);
-                        List<Cheat> seenCheats = visited.computeIfAbsent(pos, k -> new ArrayList<>());
-                        Cheat cheat = new Cheat(pos, null);
-                        boolean vis = seenCheats.contains(cheat);
-                        if (!vis) {
-                            seenCheats.add(cheat);
-                            queue.add(new State(pos, state.dist + 1, cheat, state));
+                    // see if there's a useful cheat
+                    for (Direction d : Direction.values()) {
+                        int chr = candNext.row + d.r;
+                        int chc = candNext.col + d.c;
+                        Pos candAfterCheat = new Pos(chr, chc);
+                        if (picos.containsKey(candAfterCheat)) {
+                            long improvement = picos.get(candAfterCheat) - picos.get(cur) - 2;
+                            if (improvement > 0) {
+                                counts.computeIfAbsent(improvement, k -> new AtomicInteger(0)).addAndGet(1);
+                            }
                         }
                     }
                 }
             }
+            cur = next;
         }
+        System.out.println(counts);
 
-        int count = 0;
-        for (State st : possiblePaths) {
-            if (noCheatPath.dist - st.dist >= 100) {
-                count++;
+        long p1 = 0;
+        for (Long key : counts.keySet()) {
+            if (key >= 100) {
+                p1 += counts.get(key).get();
             }
         }
-        System.out.println("p1: " + count);
-        // best for in: 9316
+        System.out.println(p1);
     }
 
     private static void print(List<List<Character>> map, Set<Pos> onBestPath) {
