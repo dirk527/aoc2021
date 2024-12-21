@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Day20 {
 
     public static void main(String[] args) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader("20-in"));
+        BufferedReader br = new BufferedReader(new FileReader("20-ex"));
 
         String s;
         List<List<Character>> map = new ArrayList<>();
@@ -84,7 +84,6 @@ public class Day20 {
             }
             cur = next;
         }
-        System.out.println(counts);
 
         long p1 = 0;
         for (Long key : counts.keySet()) {
@@ -93,7 +92,80 @@ public class Day20 {
             }
         }
         System.out.println(p1);
+
+        counts.clear();
+        for (Pos cur = start; !cur.equals(end); ) {
+            Pos next = null;
+            List<Pos> hashes = new ArrayList<>(3);
+            for (Direction direction : Direction.values()) {
+                int rr = cur.row + direction.r;
+                int cc = cur.col + direction.c;
+                Pos candNext = new Pos(rr, cc);
+                if (map.get(rr).get(cc) != '#') {
+                    if (picos.getOrDefault(candNext, Long.MAX_VALUE) == picos.getOrDefault(cur, -10L) + 1) {
+                        next = candNext;
+                    }
+                } else {
+                    hashes.add(candNext);
+                }
+            }
+            HashSet<Cheat> cheats = findCheats(map, cur, hashes, picos);
+            for (Cheat cheat : cheats) {
+                long improvement = picos.get(cheat.end) - picos.get(cur) - cheat.dist;
+                if (improvement > 0) {
+                    counts.computeIfAbsent(improvement, k -> new AtomicInteger(0)).addAndGet(1);
+                }
+                if (improvement == 66) {
+                    System.out.printf("*** 66er %s=%d ->%d-> %s=%d%n", cheat.begin, picos.get(cheat.begin), cheat.dist, cheat.end, picos.get(cheat.end));
+                }
+            }
+            cur = next;
+        }
+
+        ArrayList<Long> keys = new ArrayList<>(counts.keySet());
+        keys.sort(Long::compareTo);
+        for (Long key : keys) {
+            System.out.printf("%d way(s) to save %d%n", counts.get(key).get(), key);
+        }
     }
+
+    private static HashSet<Cheat> findCheats(List<List<Character>> map, Pos start, List<Pos> firstHash, HashMap<Pos, Long> picos) {
+        HashSet<Cheat> foundCheats = new HashSet<>();
+        PriorityQueue<State> queue = new PriorityQueue<>();
+        HashSet<Pos> seen = new HashSet<>();
+        HashSet<Pos> seenOnPath = new HashSet<>();
+        firstHash.forEach(pos -> queue.add(new State(pos, 1)));
+        while (!queue.isEmpty()) {
+            State state = queue.poll();
+            if (seen.contains(state.pos)) {
+                continue;
+            }
+            if (state.dist > 19) {
+                continue;
+            }
+            seen.add(state.pos);
+            for (Direction dir : Direction.values()) {
+                int hashr = state.r() + dir.r;
+                int hashc = state.c() + dir.c;
+                if (hashr < 1 || hashr >= map.size() - 1 || hashc < 1 || hashc >= map.get(hashr).size() - 1) {
+                    continue;
+                }
+                Pos move = new Pos(hashr, hashc);
+                if (seen.contains(move)) {
+                    continue;
+                }
+                if (picos.get(move) != null) {
+                    if (!seenOnPath.contains(move) && picos.get(move) > picos.get(start) + state.dist + 1) {
+                        seenOnPath.add(move);
+                        foundCheats.add(new Cheat(start, move, state.dist + 1));
+                    }
+                }
+                queue.add(new State(move, state.dist + 1));
+            }
+        }
+        return foundCheats;
+    }
+
 
     private static void print(List<List<Character>> map, Set<Pos> onBestPath) {
         for (int r = 0; r < map.size(); r++) {
@@ -109,7 +181,7 @@ public class Day20 {
         }
     }
 
-    record State(Pos pos, int dist, Cheat cheat, State prev) implements Comparable<State> {
+    record State(Pos pos, int dist) implements Comparable<State> {
         int r() {
             return pos.row();
         }
@@ -127,10 +199,8 @@ public class Day20 {
     record Pos(int row, int col) {
     }
 
-    record Cheat(Pos begin, Pos end) {
+    record Cheat(Pos begin, Pos end, int dist) {
     }
-
-    private static Cheat NO_CHEAT_YET = new Cheat(null, null);
 
     enum Direction {
         NORTH(-1, 0),
