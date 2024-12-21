@@ -160,21 +160,6 @@ public class Day20 {
         }
     }
 
-    record State(Pos pos, int dist) implements Comparable<State> {
-        int r() {
-            return pos.row();
-        }
-
-        int c() {
-            return pos.col();
-        }
-
-        @Override
-        public int compareTo(State o) {
-            return dist() - o.dist();
-        }
-    }
-
     record Pos(int row, int col) {
     }
 
