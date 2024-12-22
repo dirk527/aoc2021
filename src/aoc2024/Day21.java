@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -13,7 +14,7 @@ public class Day21 {
     }
 
     public static void main(String[] args) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader("21-ex"));
+        BufferedReader br = new BufferedReader(new FileReader("21-in"));
 
         List<String> codes = new ArrayList<>();
         String s;
@@ -49,16 +50,20 @@ public class Day21 {
 
         long p1 = 0;
         for (String code : codes) {
-            String moves = movesOnNumeric(numericPad, code);
-            System.out.println(code + "\n" + moves);
-            for (int i = 0; i < 2; i++) {
-                moves = movesOnDirectional(directionalPad, moves);
-                System.out.println(moves);
+            List<String> moves = movesOnPad(numericPad, new Pos(0, 3), code);
+            for (int i = 0; i < 25; i++) {
+                List<String> newMoves = new ArrayList<>();
+                for (String move : moves) {
+                    newMoves.addAll(movesOnPad(directionalPad, new Pos(0, 0), move));
+                }
+                moves = newMoves;
             }
+            ArrayList<String> all = new ArrayList<>(moves);
+            all.sort(Comparator.comparingInt(String::length));
             long codeNum = Long.parseLong(code.substring(0, 3));
-            long complexity = codeNum * moves.length();
+            long complexity = codeNum * all.getFirst().length();
             p1 += complexity;
-            System.out.printf("%s %s %d * %d = %d%n", code, moves, moves.length(), codeNum, complexity);
+            System.out.printf("%s %s %d * %d = %d%n", code, all.getFirst(), all.getFirst().length(), codeNum, complexity);
         }
         System.out.println(p1);
 
@@ -82,59 +87,129 @@ public class Day21 {
          */
     }
 
-    private static List<String> movesOnNumeric(HashMap<Character, Pos> numericPad, String code) {
-        Pos curPos = numericPad.get('A');
-        StringBuilder moves = new StringBuilder();
+    private static List<String> movesOnPad(HashMap<Character, Pos> pad, Pos crash, String code) {
+        Pos curPos = pad.get('A');
+        List<StringBuilder> ret = new ArrayList<>();
+        ret.add(new StringBuilder());
         for (Character c : code.toCharArray()) {
-            Pos nextPos = numericPad.get(c);
-            // Move in the following priority: right down up left
-            // That should mean we never hit the empty square
-            while (!curPos.equals(nextPos) && curPos.x < nextPos.x) {
-                moves.append(">");
-                curPos = new Pos(curPos.x + 1, curPos.y);
+            Pos nextPos = pad.get(c);
+            if (nextPos == null) {
+                System.out.println("*****");
             }
-            while (!curPos.equals(nextPos) && curPos.y < nextPos.y) {
-                moves.append("v");
-                curPos = new Pos(curPos.x , curPos.y + 1);
+            List<List<Direction>> sequences = new ArrayList<>(2);
+            for (Direction dir : Direction.values()) {
+                List<Direction> m = dir.calcMoves(curPos, nextPos);
+                if (!m.isEmpty()) {
+                    sequences.add(m);
+                }
             }
-            while (!curPos.equals(nextPos) && curPos.y > nextPos.y) {
-                moves.append("^");
-                curPos = new Pos(curPos.x, curPos.y - 1);
+
+            if (sequences.size() == 2) {
+                boolean firstFirstPossible = true;
+                int x = curPos.x;
+                int y = curPos.y;
+                for (Direction d : sequences.get(0)) {
+                    x += d.x;
+                    y += d.y;
+                    if (crash.x == x && crash.y == y) {
+                        firstFirstPossible = false;
+                        break;
+                    }
+                }
+                boolean secondFirstPossible = true;
+                x = curPos.x;
+                y = curPos.y;
+                for (Direction d : sequences.get(1)) {
+                    x += d.x;
+                    y += d.y;
+                    if (crash.x == x && crash.y == y) {
+                        secondFirstPossible = false;
+                        break;
+                    }
+                }
+                if (firstFirstPossible && !secondFirstPossible) {
+                    for (StringBuilder sb : ret) {
+                        sequences.get(0).forEach(d -> sb.append(d.c));
+                        sequences.get(1).forEach(d -> sb.append(d.c));
+                        sb.append('A');
+                    }
+                } else if (!firstFirstPossible && secondFirstPossible) {
+                    for (StringBuilder sb : ret) {
+                        sequences.get(1).forEach(d -> sb.append(d.c));
+                        sequences.get(0).forEach(d -> sb.append(d.c));
+                        sb.append('A');
+                    }
+                } else {
+                    List<StringBuilder> add = new ArrayList<>();
+                    for (StringBuilder sb : ret) {
+                        StringBuilder sb2 = new StringBuilder();
+                        sb2.append(sb.toString());
+                        sequences.get(0).forEach(d -> sb.append(d.c));
+                        sequences.get(1).forEach(d -> sb.append(d.c));
+                        sb.append('A');
+                        sequences.get(1).forEach(d -> sb2.append(d.c));
+                        sequences.get(0).forEach(d -> sb2.append(d.c));
+                        sb2.append('A');
+                        add.add(sb2);
+                        // TODO maybe interleaved?! but those must be worse right?!
+                    }
+                    ret.addAll(add);
+                }
+            } else {
+                for (StringBuilder sb : ret) {
+                    if (!sequences.isEmpty()) {
+                        sequences.getFirst().forEach(d -> sb.append(d.c));
+                    }
+                    sb.append('A');
+                }
             }
-            while (!curPos.equals(nextPos) && curPos.x > nextPos.x) {
-                moves.append("<");
-                curPos = new Pos(curPos.x - 1, curPos.y);
-            }
-            moves.append("A");
+            curPos = nextPos;
         }
-        return moves.toString();
+        // TODO maybe filter out all that are longer than optimal?
+        return ret.stream().map(StringBuilder::toString).toList();
     }
 
-    private static String movesOnDirectional(HashMap<Character, Pos> numericPad, String code) {
-        Pos curPos = numericPad.get('A');
-        StringBuilder moves = new StringBuilder();
-        for (Character c : code.toCharArray()) {
-            Pos nextPos = numericPad.get(c);
-            // Move in the following priority: right up down left
-            // That should mean we never hit the empty square
-            while (!curPos.equals(nextPos) && curPos.x < nextPos.x) {
-                moves.append(">");
-                curPos = new Pos(curPos.x + 1, curPos.y);
-            }
-            while (!curPos.equals(nextPos) && curPos.y > nextPos.y) {
-                moves.append("^");
-                curPos = new Pos(curPos.x, curPos.y - 1);
-            }
-            while (!curPos.equals(nextPos) && curPos.y < nextPos.y) {
-                moves.append("v");
-                curPos = new Pos(curPos.x , curPos.y + 1);
-            }
-            while (!curPos.equals(nextPos) && curPos.x > nextPos.x) {
-                moves.append("<");
-                curPos = new Pos(curPos.x - 1, curPos.y);
-            }
-            moves.append("A");
+    enum Direction {
+        UP(0, -1, '^'),
+        DOWN(0, 1, 'v'),
+        LEFT(-1, 0, '<'),
+        RIGHT(1, 0, '>');
+
+        int x;
+        int y;
+        char c;
+
+        Direction(int x, int y, char c) {
+            this.x = x;
+            this.y = y;
+            this.c = c;
         }
-        return moves.toString();
+
+        List<Direction> calcMoves(Pos start, Pos end) {
+            List<Direction> moves = new ArrayList<>();
+            switch (this) {
+                case UP -> {
+                    for (int i = start.y; i > end.y; i--) {
+                        moves.add(UP);
+                    }
+                }
+                case DOWN -> {
+                    for (int i = start.y; i < end.y; i++) {
+                        moves.add(DOWN);
+                    }
+                }
+                case LEFT -> {
+                    for (int i = start.x; i > end.x; i--) {
+                        moves.add(LEFT);
+                    }
+                }
+                case RIGHT -> {
+                    for (int i = start.x; i < end.x; i++) {
+                        moves.add(RIGHT);
+                    }
+                }
+            }
+            return moves;
+        }
     }
 }
