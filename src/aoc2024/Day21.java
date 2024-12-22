@@ -52,6 +52,7 @@ public class Day21 {
         for (String code : codes) {
             List<String> moves = movesOnPad(numericPad, new Pos(0, 3), code);
             for (int i = 0; i < 25; i++) {
+                System.out.println("i = " + i);
                 List<String> newMoves = new ArrayList<>();
                 for (String move : moves) {
                     newMoves.addAll(movesOnPad(directionalPad, new Pos(0, 0), move));
