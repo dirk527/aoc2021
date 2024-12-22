@@ -19,24 +19,88 @@ public class Day22 {
         long p1 = 0;
         for (int seed : seeds) {
             long cur = seed;
-            for (int i = 0; i<2000; i++) {
+            for (int i = 0; i < 2000; i++) {
                 cur = next(cur);
             }
             p1 += cur;
         }
         System.out.println(p1);
+
+        long best = Long.MIN_VALUE;
+        int ccc = 0;
+        for (int first = -9; first <= 9; first++) {
+            // -9 -> 0 .. 9
+            // -8 -> -1 .. 9
+            // -3 -> -6 ..9
+            // 0 -> -9 .. 9
+            // 1 -> -9 .. 8
+            for (int second = Math.max(-9, -9 - first); second <= Math.min(9, 9 - first); second++) {
+                int total = first + second;
+                for (int third = Math.max(-9, -9 - total); third <= Math.min(9, 9 - total); third++) {
+                    total = first + second + third;
+                    for (int fourth = Math.max(-9, -9 - total); fourth <= Math.min(9, 9 - total); fourth++) {
+                        if (++ccc % 500 == 0) {
+                            System.out.println("ccc = " + ccc + "; best = " + best);
+                        }
+                        MonkeySeller monkey = new MonkeySeller(first, second, third, fourth);
+                        long bananas = countBananas(seeds, monkey);
+                        best = Math.max(best, bananas);
+                    }
+                }
+            }
+        }
+        System.out.println(best);
+        System.exit(0);
+
+        MonkeySeller monkey = new MonkeySeller(-2, 1, -1, 3);
+        long bananas = countBananas(seeds, monkey);
+        System.out.println(bananas);
+    }
+
+    private static long countBananas(List<Integer> seeds, MonkeySeller monkey) {
+        long bananas = 0;
+        for (int seed : seeds) {
+            monkey.reset();
+            long cur = seed;
+            for (int i = 0; i < 2001; i++) {
+                long next = next(cur);
+                int diff = (int) ((next % 10L) - (cur % 10L));
+                if (monkey.checkNum(diff)) {
+                    int p3 = (int) (next % 10L);
+//                    System.out.printf("%d hit %d%n", seed, p3);
+                    bananas += p3;
+                    break;
+                }
+                cur = next;
+            }
+        }
+        return bananas;
+    }
+
+    static class MonkeySeller {
+        int[] sequence;
+        boolean[] hits;
+
+        public MonkeySeller(int one, int two, int three, int four) {
+            sequence = new int[]{one, two, three, four};
+            hits = new boolean[sequence.length];
+        }
+
+        public boolean checkNum(int num) {
+            for (int i = 3; i >= 0; i--) {
+                hits[i] = num == sequence[i] && (i == 0 || hits[i - 1]);
+            }
+            return hits[3];
+        }
+
+        public void reset() {
+            for (int i = 3; i >= 0; i--) {
+                hits[i] = false;
+            }
+        }
     }
 
     public static long next(long cur) {
-        /*
-        Calculate the result of multiplying the secret number by 64. Then, mix this result into the secret number. Finally, prune the secret number.
-        Calculate the result of dividing the secret number by 32. Round the result down to the nearest integer. Then, mix this result into the secret number. Finally, prune the secret number.
-        Calculate the result of multiplying the secret number by 2048. Then, mix this result into the secret number. Finally, prune the secret number.
-        Each step of the above process involves mixing and pruning:
-
-        To mix a value into the secret number, calculate the bitwise XOR of the given value and the secret number. Then, the secret number becomes the result of that operation. (If the secret number is 42 and you were to mix 15 into the secret number, the secret number would become 37.)
-        To prune the secret number, calculate the value of the secret number modulo 16777216. Then, the secret number becomes the result of that operation. (If the secret number is 100000000 and you were to prune the secret number, the secret number would become 16113920.)
-         */
         long tmp = cur * 64L;
         cur = cur ^ tmp; // mix
         cur = cur % 16777216; // prune
