@@ -4,9 +4,11 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Day23 {
     public static void main(String[] args) throws IOException {
+        long start = System.currentTimeMillis();
         BufferedReader br = new BufferedReader(new FileReader("23-in"));
 
         String s;
@@ -33,16 +35,57 @@ public class Day23 {
                 }
             }
         }
-        found.removeIf(ThreeClique::inCorrectOrder);
+        found.removeIf(ThreeClique::wrongOrder);
         found.removeIf(ThreeClique::noT);
-        System.out.println(found);
-        System.out.println(found.size());
+        long mid = System.currentTimeMillis();
+        System.out.printf("%d%n%d millis%n",found.size(), (mid - start));
 
-
+        Set<ArrayList<Computer>> nextCliques = new HashSet<>();
+        for (ThreeClique threeClique : found) {
+            nextCliques.add(new ArrayList<>(List.of(threeClique.c1, threeClique.c2, threeClique.c3)));
+        }
+        Set<ArrayList<Computer>> curCliques = null;
+        while (!nextCliques.isEmpty()) {
+            // each iteration, try to expand all cliques by one computer
+            curCliques = nextCliques;
+            nextCliques = new HashSet<>();
+            for (ArrayList<Computer> clique : curCliques) {
+                Set<Computer> candidates = new HashSet<>();
+                clique.forEach(c -> candidates.addAll(c.neighbours));
+                clique.forEach(candidates::remove);
+                candi: for (Computer candidate : candidates) {
+                    for (Computer c : clique) {
+                        if (Collections.binarySearch(c.neighbours, candidate) < 0) {
+                            continue candi;
+                        }
+                        if (Collections.binarySearch(candidate.neighbours, c) < 0) {
+                            continue candi;
+                        }
+                    }
+                    ArrayList<Computer> nextClique = new ArrayList<>(clique);
+                    nextClique.add(candidate);
+                    Collections.sort(nextClique);
+                    nextCliques.add(nextClique);
+                }
+            }
+        }
+        if (curCliques == null) {
+            System.out.println("No cliques > 3 computers");
+            System.exit(1);
+        }
+        if (curCliques.size() != 1) {
+            System.out.println("Only works for input with one max clique");
+            System.exit(1);
+        }
+        long end = System.currentTimeMillis();
+        String p2 = curCliques.iterator().next().stream()
+                .map(c -> c.name)
+                .collect(Collectors.joining(","));
+        System.out.printf("%s%n%d millis%n",p2, (end - mid));
     }
 
     record ThreeClique(Computer c1, Computer c2, Computer c3) {
-        public boolean inCorrectOrder() {
+        public boolean wrongOrder() {
             return c1.compareTo(c2) >= 0 || c2.compareTo(c3) >= 0;
         }
 
