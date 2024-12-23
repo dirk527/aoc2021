@@ -36,14 +36,15 @@ public class Day23 {
             }
         }
         found.removeIf(ThreeClique::wrongOrder);
-        found.removeIf(ThreeClique::noT);
-        long mid = System.currentTimeMillis();
-        System.out.printf("%d%n%d millis%n",found.size(), (mid - start));
-
+        // save all 3-cliques for part 2
         Set<ArrayList<Computer>> nextCliques = new HashSet<>();
         for (ThreeClique threeClique : found) {
             nextCliques.add(new ArrayList<>(List.of(threeClique.c1, threeClique.c2, threeClique.c3)));
         }
+        found.removeIf(ThreeClique::noT);
+        long mid = System.currentTimeMillis();
+        System.out.printf("%d%n%d millis%n",found.size(), (mid - start));
+
         Set<ArrayList<Computer>> curCliques = null;
         while (!nextCliques.isEmpty()) {
             // each iteration, try to expand all cliques by one computer
