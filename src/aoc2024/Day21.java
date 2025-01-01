@@ -9,9 +9,9 @@ import java.util.HashMap;
 import java.util.List;
 
 public class Day21 {
-
-    record Pos(int x, int y) {
-    }
+    private static final HashMap<Character, Pos> dirPad = new HashMap<>();
+    private static final Pos dirPadCrash = new Pos(0, 0);
+    private static HashMap<Key, Long> bestOnDirPadCache = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader("21-in"));
@@ -40,22 +40,24 @@ public class Day21 {
         numericPad.put('3', new Pos(2, 2));
         numericPad.put('0', new Pos(1, 3));
         numericPad.put('A', new Pos(2, 3));
+        Pos numericPadCrash = new Pos(0, 3);
 
-        HashMap<Character, Pos> directionalPad = new HashMap<>();
-        directionalPad.put('^', new Pos(1, 0));
-        directionalPad.put('A', new Pos(2, 0));
-        directionalPad.put('<', new Pos(0, 1));
-        directionalPad.put('v', new Pos(1, 1));
-        directionalPad.put('>', new Pos(2, 1));
+        dirPad.put('^', new Pos(1, 0));
+        dirPad.put('A', new Pos(2, 0));
+        dirPad.put('<', new Pos(0, 1));
+        dirPad.put('v', new Pos(1, 1));
+        dirPad.put('>', new Pos(2, 1));
 
         long p1 = 0;
+        long p2 = 0;
         for (String code : codes) {
-            List<String> moves = movesOnPad(numericPad, new Pos(0, 3), code);
-            for (int i = 0; i < 25; i++) {
-                System.out.println("i = " + i);
+            List<String> numPadMoves = movesOnPad(numericPad, numericPadCrash, code, numericPad.get('A'));
+            List<String> moves = numPadMoves;
+            int dirPadCount = 2;
+            for (int i = 0; i < dirPadCount; i++) {
                 List<String> newMoves = new ArrayList<>();
                 for (String move : moves) {
-                    newMoves.addAll(movesOnPad(directionalPad, new Pos(0, 0), move));
+                    newMoves.addAll(movesOnPad(dirPad, dirPadCrash, move, dirPad.get('A')));
                 }
                 moves = newMoves;
             }
@@ -64,9 +66,22 @@ public class Day21 {
             long codeNum = Long.parseLong(code.substring(0, 3));
             long complexity = codeNum * all.getFirst().length();
             p1 += complexity;
-            System.out.printf("%s %s %d * %d = %d%n", code, all.getFirst(), all.getFirst().length(), codeNum, complexity);
+
+            long len = Long.MAX_VALUE;
+            for (String numPadMove : numPadMoves) {
+                char prev = 'A';
+                long candLen = 0;
+                for (char c : numPadMove.toCharArray()) {
+                    candLen += calcBestOnDirPad(25, c, prev);
+                    prev = c;
+                }
+                len = Math.min(len, candLen);
+            }
+            complexity = codeNum * len;
+            p2 += complexity;
         }
         System.out.println(p1);
+        System.out.println(p2);
 
         /*
         | 7 | 8 | 9 |                       | ^ | A |
@@ -76,20 +91,46 @@ public class Day21 {
          */
 
         /*
-                   3                          7          9                 A
-               ^   A       ^^        <<       A     >>   A        vvv      A
-           <   A > A   <   AA  v <   AA >>  ^ A  v  AA ^ A  v <   AAA >  ^ A
-        v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A  ich
+        Proof that order of movement matters some pads down:
 
-                   3                      7          9                 A
-               ^   A         <<      ^^   A     >>   A        vvv      A
-           <   A > A  v <<   AA >  ^ AA > A  v  AA ^ A   < v  AAA >  ^ A
-        <v<A>>^AvA^A<vA<AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A      richtig
+      0             3                          7          9                 A
+      1         ^   A       ^^        <<       A     >>   A        vvv      A
+      2     <   A > A   <   AA  v <   AA >>  ^ A  v  AA ^ A  v <   AAA >  ^ A
+      3  v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A  longer
+
+      0             3                      7          9                 A
+      1         ^   A         <<      ^^   A     >>   A        vvv      A
+      2     <   A > A  v <<   AA >  ^ AA > A  v  AA ^ A   < v  AAA >  ^ A
+      3  <v<A>>^AvA^A<vA<AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A      shorter
          */
     }
 
-    private static List<String> movesOnPad(HashMap<Character, Pos> pad, Pos crash, String code) {
-        Pos curPos = pad.get('A');
+    private static long calcBestOnDirPad(int padCount, char move, char start) {
+        Key key = new Key(padCount, move, start);
+        if (bestOnDirPadCache.containsKey(key)) {
+            return bestOnDirPadCache.get(key);
+        }
+        long ret = Long.MAX_VALUE;
+        for (String moveCand : movesOnPad(dirPad, dirPadCrash, String.valueOf(move), dirPad.get(start))) {
+            long candLen = 0;
+            if (padCount == 1) {
+                candLen = moveCand.length();
+            } else {
+                char prev = 'A';
+                for (int i = 0; i < moveCand.length(); i++) {
+                    char c = moveCand.charAt(i);
+                    candLen += calcBestOnDirPad(padCount - 1, c, prev);
+                    prev = c;
+                }
+            }
+            ret = Math.min(ret, candLen);
+        }
+        bestOnDirPadCache.put(key, ret);
+        return ret;
+    }
+
+    private static List<String> movesOnPad(HashMap<Character, Pos> pad, Pos crash, String code, Pos start) {
+        Pos curPos = start;
         List<StringBuilder> ret = new ArrayList<>();
         ret.add(new StringBuilder());
         for (Character c : code.toCharArray()) {
@@ -152,7 +193,6 @@ public class Day21 {
                         sequences.get(0).forEach(d -> sb2.append(d.c));
                         sb2.append('A');
                         add.add(sb2);
-                        // TODO maybe interleaved?! but those must be worse right?!
                     }
                     ret.addAll(add);
                 }
@@ -166,8 +206,13 @@ public class Day21 {
             }
             curPos = nextPos;
         }
-        // TODO maybe filter out all that are longer than optimal?
         return ret.stream().map(StringBuilder::toString).toList();
+    }
+
+    record Pos(int x, int y) {
+    }
+
+    record Key(int count, char move, char start) {
     }
 
     enum Direction {
