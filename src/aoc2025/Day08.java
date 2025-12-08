@@ -19,6 +19,7 @@ public class Day08 {
             numConnections = 1000;
         }
 
+        // Read and parse the input
         String s;
         List<JunctionBox> allBoxes = new ArrayList<>();
         while ((s = br.readLine()) != null) {
@@ -26,57 +27,56 @@ public class Day08 {
             allBoxes.add(new JunctionBox(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]),
                     Integer.parseInt(coords[2])));
         }
-        System.out.println("allBoxes: " + allBoxes.size());
 
+        // Calculate all pairwise distances - input has 1000 rows, so that's only about half a million
         TreeSet<Distance> distances = new TreeSet<>();
-        double cutoff = Double.MAX_VALUE;
         for (int i = 0; i < allBoxes.size(); i++) {
             JunctionBox box1 = allBoxes.get(i);
             for (int j = i + 1; j < allBoxes.size(); j++) {
                 JunctionBox box2 = allBoxes.get(j);
                 double dist = Math.sqrt(Math.pow(box1.x - box2.x, 2) + Math.pow(box1.y - box2.y, 2) +
                         Math.pow(box1.z - box2.z, 2));
-                if (dist < cutoff) {
-                    distances.add(new Distance(box1, box2, dist));
-                }
-                if (distances.size() == numConnections) {
-                    cutoff = distances.last().distance;
-                }
+                distances.add(new Distance(box1, box2, dist));
             }
         }
-        System.out.println("Need " + numConnections + "; had to calculate " + distances.size());
 
+        // Union-Find data structure: every circuit is represented by one of its boxes called the head
+        // Every other box that is a member of that group has a pointer to either the head or another memeber of the
+        // group, no loops
         // Map the head marker boxes to the size of their network
         Map<JunctionBox, Integer> circuitHeads = new HashMap<>();
         int connectionsMade = 0;
         for (Distance dist : distances) {
-//            System.out.printf("step %2d: connecting dist %4.1f %s and %s\n", connectionsMade, dist.distance, dist.one, dist.two);
             JunctionBox head1 = dist.one.findHead();
             Integer size1 = circuitHeads.get(head1);
             JunctionBox head2 = dist.two.findHead();
             Integer size2 = circuitHeads.get(head2);
-//            System.out.printf("h1 %s s1 %d h2 %s s2 %d\n", head1, size1, head2, size2);
 
-            if (size1 == null && size2 == null) {
+            if (size1 == null && size2 == null) {        // new circuit
                 dist.two.head = dist.one;
                 circuitHeads.put(dist.one, 2);
-            } else if (size1 != null && size2 == null) {
+            } else if (size1 != null && size2 == null) { // add two to one's circuit
                 dist.two.head = head1;
                 circuitHeads.put(head1, size1 + 1);
-            } else if (size1 == null && size2 != null) {
+            } else if (size1 == null && size2 != null) { // add one to two's circuit
                 dist.one.head = head2;
                 circuitHeads.put(head2, size2 + 1);
-            } else if (head1 != head2) {
+            } else if (head1 != head2) {                 // merge the circuits
                 head2.head = head1;
                 circuitHeads.remove(head2);
                 circuitHeads.put(head1, size1 + size2);
-            }
+            }                                            // last case head1 == head2 -> no action
             if (++connectionsMade == numConnections) {
+                // part 1 must be calculated after numConnection steps
                 List<Integer> circuitSizes = new ArrayList<>(circuitHeads.values());
                 circuitSizes.sort(Comparator.naturalOrder());
                 int count = circuitSizes.size();
                 int result1 = circuitSizes.get(count - 1) * circuitSizes.get(count - 2) * circuitSizes.get(count - 3);
                 System.out.println("part1: " + result1);
+            }
+            if (circuitHeads.size() == 1 && circuitHeads.containsValue(allBoxes.size())) {
+                // part 2 must be calculated the first time all boxes are in one circuit
+                System.out.println("part2: " + (long) dist.one.x * (long) dist.two.x);
                 break;
             }
         }
@@ -121,11 +121,7 @@ public class Day08 {
 
         @Override
         public String toString() {
-            return "JunctionBox{" +
-                    "x=" + x +
-                    ", y=" + y +
-                    ", z=" + z +
-                    '}';
+            return "JunctionBox{x=" + x + ", y=" + y + ", z=" + z + '}';
         }
     }
 
@@ -135,6 +131,4 @@ public class Day08 {
             return Double.compare(distance, o.distance);
         }
     }
-
-    ;
 }
