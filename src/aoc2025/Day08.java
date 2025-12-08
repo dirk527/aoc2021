@@ -27,6 +27,7 @@ public class Day08 {
             allBoxes.add(new JunctionBox(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]),
                     Integer.parseInt(coords[2])));
         }
+        long startTime = System.currentTimeMillis();
 
         // Calculate all pairwise distances - input has 1000 rows, so that's only about half a million
         TreeSet<Distance> distances = new TreeSet<>();
@@ -39,6 +40,8 @@ public class Day08 {
                 distances.add(new Distance(box1, box2, dist));
             }
         }
+        long curTime = System.currentTimeMillis();
+        System.out.printf("calculate distances: %d millis \n", curTime - startTime);
 
         // Union-Find data structure: every circuit is represented by one of its boxes called the head
         // Every other box that is a member of that group has a pointer to either the head or another memeber of the
@@ -72,11 +75,14 @@ public class Day08 {
                 circuitSizes.sort(Comparator.naturalOrder());
                 int count = circuitSizes.size();
                 int result1 = circuitSizes.get(count - 1) * circuitSizes.get(count - 2) * circuitSizes.get(count - 3);
-                System.out.println("part1: " + result1);
+                curTime = System.currentTimeMillis();
+                System.out.printf("part1: %15d after %d millis\n", result1, curTime - startTime);
             }
             if (circuitHeads.size() == 1 && circuitHeads.containsValue(allBoxes.size())) {
                 // part 2 must be calculated the first time all boxes are in one circuit
-                System.out.println("part2: " + (long) dist.one.x * (long) dist.two.x);
+                long result2 = (long) dist.one.x * (long) dist.two.x;
+                curTime = System.currentTimeMillis();
+                System.out.printf("part1: %15d after %d millis total\n", result2, curTime - startTime);
                 break;
             }
         }
