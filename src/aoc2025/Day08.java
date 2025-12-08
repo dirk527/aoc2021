@@ -29,16 +29,17 @@ public class Day08 {
         long startTime = System.currentTimeMillis();
 
         // Calculate all pairwise distances - input has 1000 rows, so that's only about half a million
-        TreeSet<Distance> distances = new TreeSet<>();
+        ArrayList<Distance> distances = new ArrayList<>();
         for (int i = 0; i < allBoxes.size(); i++) {
             JunctionBox box1 = allBoxes.get(i);
             for (int j = i + 1; j < allBoxes.size(); j++) {
                 JunctionBox box2 = allBoxes.get(j);
-                double dist = Math.sqrt(Math.pow(box1.x - box2.x, 2) + Math.pow(box1.y - box2.y, 2) +
-                        Math.pow(box1.z - box2.z, 2));
+                double dist = Math.pow(box1.x - box2.x, 2) + Math.pow(box1.y - box2.y, 2) +
+                        Math.pow(box1.z - box2.z, 2);
                 distances.add(new Distance(box1, box2, dist));
             }
         }
+        distances.sort(Distance::compareTo);
         long curTime = System.currentTimeMillis();
         System.out.printf("calculate distances: %d millis \n", curTime - startTime);
 
@@ -71,9 +72,8 @@ public class Day08 {
             if (++connectionsMade == numConnections) {
                 // part 1 must be calculated after numConnection steps
                 List<Integer> circuitSizes = new ArrayList<>(circuitHeads.values());
-                circuitSizes.sort(Comparator.naturalOrder());
-                int count = circuitSizes.size();
-                int result1 = circuitSizes.get(count - 1) * circuitSizes.get(count - 2) * circuitSizes.get(count - 3);
+                circuitSizes.sort(Comparator.reverseOrder());
+                int result1 = circuitSizes.get(0) * circuitSizes.get(1) * circuitSizes.get(2);
                 curTime = System.currentTimeMillis();
                 System.out.printf("part1: %15d after %d millis\n", result1, curTime - startTime);
             }
