@@ -7,6 +7,8 @@ import java.util.*;
 
 public class Day10 {
     public static void main(String[] args) throws IOException {
+        long startTime = System.currentTimeMillis();
+
         boolean example = false;
         BufferedReader br;
         if (example) {
@@ -45,7 +47,6 @@ public class Day10 {
             allMachines.add(new Machine(target, buttons));
         }
         System.out.println(allMachines);
-        long startTime = System.currentTimeMillis();
 
         // Part 1: BFS
         long result = 0;
@@ -60,26 +61,24 @@ public class Day10 {
     }
 
     static int bfs(Machine m) {
-        Deque<State> deque = new LinkedList<>();
-        deque.add(new State(0, -1, 0));
-        while (!deque.isEmpty()) {
-            State s = deque.poll();
-            if (s.lights == m.target) {
-                return s.numPresses;
-            }
-            List<Long> buttons = m.buttons;
-            for (int i = 0; i < buttons.size(); i++) {
-                if (i == s.lastBtnPressed) {
-                    continue;
+        int presses = 1;
+        List<Long> curStates = new ArrayList<>();
+        curStates.add(0L);
+        List<Long> nextStates = new ArrayList<>();
+        while (true) {
+            for (Long state : curStates) {
+                for (Long button : m.buttons) {
+                    long nextState = state ^ button;
+                    if (nextState == m.target) {
+                        return presses;
+                    }
+                    nextStates.add(nextState);
                 }
-                long nLights = s.lights ^ buttons.get(i);
-                deque.add(new State(s.numPresses + 1, i, nLights));
             }
+            curStates = nextStates;
+            nextStates = new ArrayList<>();
+            presses++;
         }
-        return -1;
-    }
-
-    record State(int numPresses, int lastBtnPressed, long lights) {
     }
 
     record Machine(long target, List<Long> buttons) {
