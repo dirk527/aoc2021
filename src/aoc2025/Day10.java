@@ -20,24 +20,26 @@ public class Day10 {
         List<Machine> allMachines = new ArrayList<>();
         while ((s = br.readLine()) != null) {
             String[] parts = s.split(" ");
-            BitSet target = null;
-            List<BitSet> buttons = new ArrayList<>();
+            long target = 0;
+            int targetLen = -1;
+            List<Long> buttons = new ArrayList<>();
             for (String part : parts) {
                 if (part.charAt(0) == '[') {
                     String lights = part.substring(1, part.length() - 1);
-                    target = new BitSet(lights.length());
-                    for (int i = 0; i < lights.length(); i++) {
-                        if (lights.charAt(i) == '#') {
-                            target.set(i);
-                        }
-                    }
+                    targetLen = lights.length();
+                    lights = lights.replaceAll("#", "1");
+                    lights = lights.replaceAll("\\.", "0");
+                    target = Long.parseLong(lights, 2);
+                    System.out.printf("lights %20s long %3d binary %15s\n", lights, target, Long.toBinaryString(target));
                 } else if (part.charAt(0) == '(') {
-                    BitSet button = new BitSet(target.size());
-                    String[] nums = part.substring(1, part.length() - 1).split(",");
+                    long button = 0;
+                    String numbers = part.substring(1, part.length() - 1);
+                    String[] nums = numbers.split(",");
                     for (String num : nums) {
-                        button.set(Integer.parseInt(num));
+                        button = button ^ ((long)Math.pow(2, targetLen - Integer.parseInt(num) - 1));
                     }
                     buttons.add(button);
+                    System.out.printf("button %20s long %3d binary %15s\n", numbers, button, Long.toBinaryString(button));
                 }
             }
             allMachines.add(new Machine(target, buttons));
@@ -58,32 +60,29 @@ public class Day10 {
     }
 
     static int bfs(Machine m) {
-        Deque<State> deque = new ArrayDeque<>();
-        deque.add(new State(0, -1, new BitSet(m.target.size())));
+        Deque<State> deque = new LinkedList<>();
+        deque.add(new State(0, -1, 0));
         while (!deque.isEmpty()) {
             State s = deque.poll();
-            if (s.lights.equals(m.target)) {
+            if (s.lights == m.target) {
                 return s.numPresses;
             }
-            List<BitSet> buttons = m.buttons;
+            List<Long> buttons = m.buttons;
             for (int i = 0; i < buttons.size(); i++) {
                 if (i == s.lastBtnPressed) {
                     continue;
                 }
-                BitSet btn = buttons.get(i);
-                BitSet nLights = new BitSet(btn.size());
-                nLights.xor(s.lights);
-                nLights.xor(btn);
+                long nLights = s.lights ^ buttons.get(i);
                 deque.add(new State(s.numPresses + 1, i, nLights));
             }
         }
         return -1;
     }
 
-    record State(int numPresses, int lastBtnPressed, BitSet lights) {
+    record State(int numPresses, int lastBtnPressed, long lights) {
     }
 
-    record Machine(BitSet target, List<BitSet> buttons) {
+    record Machine(long target, List<Long> buttons) {
     }
 
     /*
