@@ -9,46 +9,58 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Day11 {
+    private static HashMap<String, List<String>> vertices;
+
     public static void main(String[] args) throws IOException {
-        long startTime = System.currentTimeMillis();
-
-        boolean example = false;
-        BufferedReader br;
-        if (example) {
-            br = new BufferedReader(new FileReader("11-ex"));
-        } else {
-            br = new BufferedReader(new FileReader("11-in"));
-        }
-
         // Read and parse the input
+        BufferedReader br = new BufferedReader(new FileReader("11-in"));
         String s;
-        HashMap<String, List<String>> vertices = new HashMap<>();
+        vertices = new HashMap<>();
         while ((s = br.readLine()) != null) {
             String[] parts = s.split(" ");
-            String src =  parts[0].substring(0, parts[0].length() - 1);
+            String src = parts[0].substring(0, parts[0].length() - 1);
             List<String> targets = new ArrayList<>();
             for (int i = 1; i < parts.length; i++) {
                 targets.add(parts[i]);
             }
             vertices.put(src, targets);
         }
-        System.out.println(vertices);
 
+        // Part 1: no required nodes
         HashMap<String, Long> nPaths = new HashMap<>();
-        calculate(nPaths, vertices, "you");
+        calculate(nPaths, List.of(), "you");
         System.out.println(nPaths.get("you"));
+
+        // Part 2: require dac and fft - the keys in nPaths are current node plus the not-yet-reached required nodes
+        nPaths.clear();
+        calculate(nPaths, new ArrayList<>(List.of("dac", "fft")), "svr");
+        System.out.println(nPaths.get("svrdacfft"));
     }
 
-    private static Long calculate(HashMap<String, Long> cache, HashMap<String, List<String>> v, String cur) {
-        if (cache.containsKey(cur)) {
-            return cache.get(cur);
+    private static Long calculate(HashMap<String, Long> cache, List<String> required, String cur) {
+        StringBuilder sb = new StringBuilder(cur);
+        for (String r : required) {
+            sb.append(r);
+        }
+        String cacheKey = sb.toString();
+        if (cache.containsKey(cacheKey)) {
+            return cache.get(cacheKey);
         }
         if (cur.equals("out")) {
-            return 1L;
+            return required.isEmpty() ? 1L : 0L;
+        }
+        // required is part of the cache key and it being empty is the end condition
+        // so if cur is one of the required ones, remove it for the recursion (and add it back after)
+        boolean foundOne = required.contains(cur);
+        if (foundOne) {
+            required.remove(cur);
         }
         AtomicLong result = new AtomicLong();
-        v.get(cur).forEach(target -> result.addAndGet(calculate(cache, v, target)));
-        cache.put(cur, result.get());
+        vertices.get(cur).forEach(target -> result.addAndGet(calculate(cache, required, target)));
+        cache.put(cacheKey, result.get());
+        if (foundOne) {
+            required.add(cur);
+        }
         return result.get();
     }
 }
