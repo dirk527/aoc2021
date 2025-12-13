@@ -5,11 +5,16 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 import static aoc2025.Day09.State.*;
 
 public class Day09 {
+    private static List<VerticalLine> greenVerticals;
+    private static HashMap<Long, List<Range>> ranges = new HashMap<>();
+    private static long maxX;
+
     public static void main(String[] args) throws IOException {
         boolean example = false;
         BufferedReader br;
@@ -43,57 +48,65 @@ public class Day09 {
         System.out.printf("result1: %10d in %10d milliseconds\n", maxArea, p1Time - startTime);
 
         // Calculate green verticals
-        List<VerticalLine> greenVerticals = new ArrayList<>();
+        maxX = 0L;
+        greenVerticals = new ArrayList<>();
         for (int i = 0; i < nTiles; i++) {
             Tile t1 = allTiles.get(i);
+            maxX = Math.max(t1.x, maxX);
             Tile t2 = allTiles.get((i + 1) % nTiles);
             if (t1.x == t2.x) {
                 greenVerticals.add(new VerticalLine(t1.x, Math.min(t1.y, t2.y), Math.max(t1.y, t2.y)));
             }
         }
         greenVerticals.sort(Comparator.comparingLong(v -> v.x));
-        System.out.println("greenVerticals: " + greenVerticals);
 
         if (example) {
-            for (int y = 0; y < 9; y++) {
-                for (int x = 0; x < 17; x++) {
-                    System.out.print(switch (green(x, y, greenVerticals)) {
-                        case NONE -> ".";
-                        case INSIDE -> "#";
-                        case TOP_BORDER -> "T";
-                        case BOTTOM_BORDER -> "B";
-                    });
-                }
-                System.out.println();
-            }
+            debugGrid(0, 9);
         }
 
+        // same as part1, but with the allGreen() condition
         maxArea = 0;
         for (int i = 0; i < nTiles; i++) {
-            System.out.printf("i=%d\n", i);
             Tile t1 = allTiles.get(i);
             for (int j = i + 1; j < nTiles; j++) {
-                System.out.printf("j=%d\n", j);
                 Tile t2 = allTiles.get(j);
-                if (allGreen(t1, t2, greenVerticals)) {
+                if (allGreen(t1, t2)) {
                     long area = (Math.abs(t1.x - t2.x) + 1) * (Math.abs(t1.y - t2.y) + 1);
-                    System.out.printf("red/green %10d %s (%d) %s (%d)\n", area, t1, i, t2, j);
+//                    System.out.printf("red/green %10d %s (%d) %s (%d)\n", area, t1, i, t2, j);
                     maxArea = Math.max(maxArea, area);
                 }
             }
         }
         long p2Time = System.currentTimeMillis();
         System.out.printf("result2: %10d in %10d milliseconds\n", maxArea, p2Time - p1Time);
+        System.out.printf("ranges %d %d\n", ranges.size(), ranges.values().stream().mapToLong(List::size).sum());
     }
 
-    private static boolean allGreen(Tile t1, Tile t2, List<VerticalLine> greenVerticals) {
+    private static void debugGrid(long yMin, long yMax) {
+        for (long y = yMin; y < yMax; y++) {
+            for (Range r : ranges.computeIfAbsent(y, Day09::calculateRanges)) {
+                for (long i = r.xMin; i <= r.xMax; i++) {
+                    System.out.print(switch (r.state) {
+                        case NONE -> ".";
+                        case INSIDE -> "#";
+                        case TOP_BORDER -> "T";
+                        case BOTTOM_BORDER -> "B";
+                    });
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    private static boolean allGreen(Tile t1, Tile t2) {
         long xMin = Math.min(t1.x, t2.x);
         long yMin = Math.min(t1.y, t2.y);
         long xMax = Math.max(t1.x, t2.x);
         long yMax = Math.max(t1.y, t2.y);
-        for (long x = xMin; x <= xMax; x++) {
-            for (long y = yMin; y <= yMax; y++) {
-                if (green(x, y, greenVerticals) == NONE) {
+        for (long y = yMin; y <= yMax; y++) {
+            List<Range> rs = ranges.computeIfAbsent(y, Day09::calculateRanges);
+            for (Range r : rs) {
+                if (r.state == NONE && ((xMin >= r.xMin && xMin <= r.xMax) || (xMax >= r.xMin && xMax <= r.xMax))) {
                     return false;
                 }
             }
@@ -101,20 +114,12 @@ public class Day09 {
         return true;
     }
 
-    enum State {
-        NONE,
-        TOP_BORDER,
-        BOTTOM_BORDER,
-        INSIDE
-    }
-
-    private static State green(long x, long y, List<VerticalLine> greenVerticals) {
+    private static List<Range> calculateRanges(long y) {
+        List<Range> result = new ArrayList<>();
         State state = NONE;
+        long xStart = 0;
         for (VerticalLine vl : greenVerticals) {
-            if (vl.x > x) {
-                return state;
-            }
-            State newState = state;
+            State newState = null;
             if (y == vl.yMin) {
                 newState = switch (state) {
                     case NONE -> TOP_BORDER;
@@ -138,48 +143,28 @@ public class Day09 {
                     case INSIDE -> NONE;
                 };
             }
-            if (vl.x == x && state != newState) {
+            if (newState != null) {
+                long xEnd;
                 if (newState == NONE) {
-                    return state;
+                    xEnd = vl.x;
+                } else {
+                    xEnd = vl.x - 1;
                 }
-                return newState;
+                result.add(new Range(xStart, xEnd, state));
+                state = newState;
+                xStart = xEnd + 1;
             }
-            state = newState;
         }
-        return state;
+        result.add(new Range(xStart, maxX + 5, state));
+//        System.out.printf("%d %s\n", y, result);
+        return result;
     }
 
-    record Tile(long x, long y) {
-    }
+    enum State {NONE, TOP_BORDER, BOTTOM_BORDER, INSIDE}
 
-    record VerticalLine(long x, long yMin, long yMax) {
-    }
+    record Tile(long x, long y) {}
 
-    /*
-    X
-    01234567890123
-    .............. 0 Y
-    .......#XXX#.. 1
-    .......X...X.. 2
-    ..#XXXX#...X.. 3
-    ..X........X.. 4
-    ..#XXXXXX#.X.. 5
-    .........X.X.. 6
-    .........#X#.. 7
-    .............. 8
+    record VerticalLine(long x, long yMin, long yMax) {}
 
-    X
-    01234567890123456
-    ................. 0
-    .......TTTTT..... 1
-    .......####TTTTT. 2
-    ..TTTTT#####BB##. 3
-    ..##########..BB. 4
-    ..BBBBBBB###..... 5
-    .........###..... 6
-    .........BBB..... 7
-    ................. 8
-
-
-     */
+    record Range(long xMin, long xMax, State state) {}
 }
