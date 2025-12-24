@@ -5,10 +5,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
-import java.util.*;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Day10 {
     private static final MathContext CONTEXT = MathContext.DECIMAL128;
+    private static BigDecimal ALMOST_ZERO = BigDecimal.valueOf(.0000000000000001);
 
     public static void main(String[] args) throws IOException {
         long startTime = System.currentTimeMillis();
@@ -71,16 +75,14 @@ public class Day10 {
 
         long result2 = 0;
         for (Machine machine : allMachines) {
-            System.out.println(machine);
             long joltage = joltageGauss(machine);
-            System.out.printf("joltage: %d\n", joltage);
             result2 += joltage;
         }
         long p2Time = System.currentTimeMillis();
         System.out.printf("result2: %10d in %10d milliseconds\n", result2, p2Time - p1Time);
     }
 
-    static int bfs(Machine m) {
+    private static int bfs(Machine m) {
         int presses = 1;
         List<Long> curStates = new ArrayList<>();
         curStates.add(0L);
@@ -102,7 +104,7 @@ public class Day10 {
     }
 
     static long joltageSearch(Machine m, int buttonsAlready, long[] state) {
-//        System.out.printf("bA %d state %s\n", buttonsAlready, Arrays.toString(state));
+        // Yeah this works in principle, but it's way too slow for the real input...
         if (buttonsAlready == m.buttons.size()) {
             return -1;
         }
@@ -113,7 +115,6 @@ public class Day10 {
                 maxPresses = Math.min(maxPresses, m.joltages.get((int) i) - state[(int) i]);
             }
         }
-//        System.out.printf("  btn %s maxp: %d\n", Long.toBinaryString(button), maxPresses);
         for (long i = 0, mask = 1; i < m.length; i++, mask <<= 1) {
             if ((button & mask) > 0) {
                 state[(int) i] += maxPresses;
@@ -150,10 +151,9 @@ public class Day10 {
         // Prepare the input matrix: rows are equations, cols are factors, last col is joltage values
         BigDecimal[][] matrix = new BigDecimal[m.joltages.size()][m.buttons.size() + 1];
         int mask = 1;
-        for  (int i = 0; i < m.joltages.size(); i++) {
+        for (int i = 0; i < m.joltages.size(); i++) {
             for (int j = 0; j < m.buttons.size(); j++) {
                 Long btn = m.buttons.get(j);
-//                System.out.printf("%5d %10s\n", btn, Long.toBinaryString(btn));
                 if ((btn & mask) > 0) {
                     matrix[i][j] = BigDecimal.valueOf(1);
                 } else {
@@ -163,34 +163,119 @@ public class Day10 {
             mask <<= 1;
             matrix[i][m.buttons.size()] = BigDecimal.valueOf(m.joltages.get(i));
         }
-//        debugMatrix(matrix);
-        gauss(matrix);
-//        System.out.println("after gauss");
-//        debugMatrix(matrix);
-        for (int row = matrix.length - 1; row >= 0; row--) {
-            for (int col = 0; col < matrix[row].length - 1; col++) {
-                if (!matrix[row][col].equals(BigDecimal.ZERO)) {
-                    int ret = matrix[row].length - col - 1;
-                    if (ret == 1) {
-                        debugMatrix(matrix);
+        // pseudocode on https://en.wikipedia.org/wiki/Gaussian_elimination
+        // transform the matrix to row-echelon form
+        gaussianElimination(matrix);
+        List<Integer> numPresses = new ArrayList<>();
+        for (int j = 0; j < m.buttons.size(); j++) {
+            numPresses.add(null);
+        }
+        return findBest(matrix, notLeadingButtons(matrix), m.maxJoltage(), numPresses);
+    }
+
+    private static long findBest(BigDecimal[][] matrix, List<Integer> undeterminedCols, long maxJoltage,
+            List<Integer> numPresses) {
+        // if all the undetermined cols have been guessed, try to calculate a valid solution and return that
+        if (undeterminedCols.isEmpty()) {
+            if (calculateUniqueSolution(matrix, numPresses)) {
+                long ret = numPresses.stream().mapToLong(Long::valueOf).sum();
+//                System.out.printf("found %d: %s\n", ret, numPresses);
+                return ret;
+            } else {
+                return Long.MAX_VALUE;
+            }
+        }
+
+        // Otherwise, try all possible values for the first col and recurse
+        long ret = Long.MAX_VALUE;
+        Integer myIdx = undeterminedCols.removeFirst();
+        for (int i = 0; i <= maxJoltage; i++) {
+            numPresses.set(myIdx, i);
+            ret = Math.min(ret, findBest(matrix, undeterminedCols, maxJoltage, numPresses));
+        }
+        undeterminedCols.addFirst(myIdx);
+        return ret;
+    }
+
+    private static boolean calculateUniqueSolution(BigDecimal[][] matrix, List<Integer> numPresses) {
+        // numPresses must already contain values for any columns that are not leading in a row
+        rows: for (int row = matrix.length - 1; row >= 0; row--) {
+            for (int col = 0; col < matrix[0].length - 1; col++) {
+                if (!isZero(matrix[row][col])) {
+                    BigDecimal val = matrix[row][matrix[row].length - 1];
+                    for (int cc = col + 1; cc < matrix[row].length - 1; cc++) {
+                        val = val.subtract(matrix[row][cc].multiply(BigDecimal.valueOf(numPresses.get(cc))));
                     }
-                    return ret;
+                    val = val.divide(matrix[row][col], CONTEXT);
+                    // This was only a success if the result is a positive integer or zero
+                    BigDecimal rounded = val.setScale(0, RoundingMode.HALF_UP);
+                    if (val.subtract(rounded).abs().compareTo(ALMOST_ZERO) > 0) {
+                        return false;
+                    }
+                    if (rounded.compareTo(BigDecimal.ZERO) < 0) {
+                        return false;
+                    }
+                    numPresses.set(col, rounded.intValueExact());
+                    continue rows;
                 }
             }
         }
-        return -1;
+        return true;
+    }
+
+    private static List<Integer> notLeadingButtons(BigDecimal[][] matrix) {
+        // a leading button is a button that has a row in which its column is the first from the left with a non-0 value
+        // we need to check if there are any buttons which do not fit
+        List<Integer> buttonsNotLeading = new ArrayList<>();
+        int stopSearch = matrix[0].length - 1;
+        for (int row = matrix.length - 1; row >= 0; row--) {
+            for (int col = 0; col < stopSearch; col++) {
+                if (!isZero(matrix[row][col])) {
+                    int varsLeading = stopSearch - col;
+                    if (varsLeading > 1) {
+                        for (int btn = col + 1; btn < stopSearch; btn++) {
+                            buttonsNotLeading.add(btn);
+                        }
+                    }
+                    stopSearch = col;
+                }
+            }
+        }
+        return buttonsNotLeading;
+    }
+
+    private static boolean isZero(BigDecimal x) {
+        return x.abs().compareTo(ALMOST_ZERO) < 0;
+    }
+
+    private static void printBinaryButtons(Machine m, BigDecimal[][] matrix) {
+        for (char c = 'a'; c < matrix[0].length + 'a' - 1; c++) {
+            System.out.printf("%2s %10s\n", m.buttons.get(c - 'a'), Long.toBinaryString(m.buttons.get(c - 'a')));
+        }
     }
 
     private static void debugMatrix(BigDecimal[][] matrix) {
+        for (int i = 0; i < matrix[0].length - 1; i++) {
+            System.out.printf(" (%2s) ", i);
+        }
+        System.out.println();
+        for (char c = 'a'; c < matrix[0].length + 'a' - 1; c++) {
+            System.out.printf("%5s ", c);
+        }
+        System.out.println();
+        DecimalFormat df = new DecimalFormat();
+        df.setMaximumFractionDigits(3);
+        df.setMinimumFractionDigits(0);
+        df.setGroupingUsed(false);
         for (BigDecimal[] row : matrix) {
             for (BigDecimal value : row) {
-                System.out.printf("%3s ", value.toPlainString());
+                System.out.printf("%5s ", df.format(value));
             }
             System.out.println();
         }
     }
 
-    static void gauss(BigDecimal[][] matrix) {
+    static void gaussianElimination(BigDecimal[][] matrix) {
         // See https://en.wikipedia.org/wiki/Gaussian_elimination
         int pivotRow = 0;
         int pivotCol = 0;
@@ -206,10 +291,7 @@ public class Day10 {
                     idxMax = i;
                 }
             }
-            if (idxMax == -1) {
-                return;
-            }
-            if (matrix[idxMax][pivotCol].equals(BigDecimal.ZERO)) {
+            if (idxMax == -1 || matrix[idxMax][pivotCol].equals(BigDecimal.ZERO)) {
                 // nothing to pivot in this column
                 pivotCol++;
             } else {
@@ -226,28 +308,15 @@ public class Day10 {
                         matrix[i][j] = matrix[i][j].subtract(factor.multiply(matrix[pivotRow][j]));
                     }
                 }
+                pivotCol++;
+                pivotRow++;
             }
-            pivotCol++;
-            pivotRow++;
         }
     }
 
     record Machine(long target, List<Long> buttons, List<Long> joltages, int length) {
+        public long maxJoltage() {
+            return joltages().stream().max(Long::compareTo).get();
+        }
     }
-    /*
-    a   b     c   d     e     f
-    (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
-
-    3 = e + f
-    5 = b + f
-    4 = c + d + e
-    7 = a + b + d
-
-    after gauss-jordan
-    3 = e + f
-    4 = c + d + e
-    5 = b + f
-    7 * a + b + d
-
-     */
 }
