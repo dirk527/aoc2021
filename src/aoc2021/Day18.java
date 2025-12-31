@@ -36,8 +36,8 @@ public class Day18 {
         System.out.println("Total time: " + (System.currentTimeMillis() - start) + " ms");
 
         long max = 0;
-        for (int i = 0; i < p1Numbers.size(); i++) {
-            for (int j = 0; j < p1Numbers.size(); j++) {
+        for (int i = 0; i < inputStrings.size(); i++) {
+            for (int j = 0; j < inputStrings.size(); j++) {
                 if (i==j) {
                     continue;
                 }
